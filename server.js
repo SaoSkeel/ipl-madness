@@ -157,10 +157,10 @@ app.get('/api/group/:groupId', async (req, res) => {
   } catch (e) { res.status(500).json({ error:e.message }); }
 });
 
-// Check existing bracket (for edit detection)
+// Check existing bracket (for edit detection / new-device load)
 app.get('/api/picks/check', async (req, res) => {
   try {
-    const { name, groupId } = req.query;
+    const { name, groupId, pin } = req.query;
     if (!name || !groupId) return res.status(400).json({ error:'name and groupId required' });
     const gid    = groupId.trim().toUpperCase();
     const pickId = makePickId(name, gid);
@@ -170,14 +170,25 @@ app.get('/api/picks/check', async (req, res) => {
     ]);
     const locked = groupSnap.exists ? groupSnap.data().locked : false;
     if (!pickSnap.exists) return res.json({ exists:false, pickId, locked });
-    res.json({ exists:true, pickId, locked, picks:pickSnap.data() });
+    const pickData = pickSnap.data();
+    if (pickData.pin) {
+      if (!pin || !pin.trim()) {
+        return res.status(401).json({ error:'PIN required to load this bracket', pinRequired:true });
+      }
+      const hashed = crypto.createHash('sha256').update(pin.trim()).digest('hex');
+      if (hashed !== pickData.pin) {
+        return res.status(401).json({ error:'Incorrect PIN', pinRequired:true });
+      }
+    }
+    const { pin:_pin, ...safeData } = pickData;
+    res.json({ exists:true, pickId, locked, picks:safeData });
   } catch (e) { res.status(500).json({ error:e.message }); }
 });
 
 // Submit (POST=new, PUT=edit) — multiple brackets per group allowed (by different names)
 async function handlePicksSubmit(req, res, forceEdit) {
   try {
-    const { name, groupId, matches, semis, champion } = req.body;
+    const { name, groupId, matches, semis, champion, pin } = req.body;
 
     if (!name?.trim())   return res.status(400).json({ error:'Name required' });
     if (!groupId?.trim()) return res.status(400).json({ error:'Group ID required' });
@@ -213,6 +224,11 @@ async function handlePicksSubmit(req, res, forceEdit) {
       submittedAt: existDoc.exists ? existDoc.data().submittedAt : now,
       updatedAt: now,
     };
+    if (pin && pin.trim()) {
+      payload.pin = crypto.createHash('sha256').update(pin.trim()).digest('hex');
+    } else if (existDoc.exists && existDoc.data().pin) {
+      payload.pin = existDoc.data().pin; // preserve existing PIN on edit
+    }
     const isNew = !existDoc.exists;
     await picksRef.set(payload);
     // Keep memberCount in sync without an extra reads — recomputeGroup also sets it,

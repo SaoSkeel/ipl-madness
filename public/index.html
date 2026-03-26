@@ -396,6 +396,7 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
     <span style="font-size:12px;color:var(--muted);flex:1;">On a new device? Load your existing bracket by name.</span>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <input class="finput" id="lb-name-input" type="text" placeholder="Your name" style="width:160px;">
+      <input class="finput" id="lb-pin-input" type="password" placeholder="PIN (if set)" style="width:130px;" autocomplete="off">
       <button class="edit-btn" onclick="loadMyBracketFromServer()">Load My Bracket</button>
     </div>
   </div>
@@ -466,6 +467,11 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
         <input class="finput" id="f-name" type="text" placeholder="e.g. Rahul M." autocomplete="off"></div>
       <div><div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Group Code *</div>
         <input class="finput" id="f-group" type="text" placeholder="e.g. CL2026" autocomplete="off" style="text-transform:uppercase;"></div>
+    </div>
+    <div style="margin-bottom:4px;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Security PIN <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+      <input class="finput" id="f-pin" type="password" placeholder="Set a PIN to protect your bracket" autocomplete="new-password" style="max-width:320px;">
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">If set, this PIN is required when loading your bracket on a new device.</div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">One bracket per name per group. Multiple groups supported.</div>
 
@@ -839,12 +845,19 @@ function viewGroup(){
 
 async function loadMyBracketFromServer(){
   const name=document.getElementById('lb-name-input').value.trim();
+  const pin=document.getElementById('lb-pin-input').value.trim();
   if(!name)return toast('Enter your name',true);
   const gid=_viewingGroupId;
   if(!gid)return toast('View a group first',true);
   try{
-    const r=await fetch(`${API}/api/picks/check?name=${encodeURIComponent(name)}&groupId=${gid}`);
+    const params=new URLSearchParams({name,groupId:gid});
+    if(pin)params.set('pin',pin);
+    const r=await fetch(`${API}/api/picks/check?${params}`);
     const data=await r.json();
+    if(r.status===401){
+      if(data.pinRequired&&!pin)return toast('This bracket is PIN-protected — enter your PIN',true);
+      return toast('Incorrect PIN',true);
+    }
     if(!data.exists)return toast('No bracket found for that name in this group',true);
     upsertBracket(gid,data.pickId,data.picks,data.locked);
     S.activePickId=data.pickId;ls.set('ipl_activePickId',data.pickId);
@@ -1062,7 +1075,9 @@ async function submitPicks(){
   const champ=document.querySelector('input[name=champion]:checked');
   if(!champ)return toast('Pick your Season Champion',true);
 
+  const pinVal=document.getElementById('f-pin')?.value?.trim();
   const payload={name,groupId:gid,matches,semis,champion:champ.value};
+  if(pinVal)payload.pin=pinVal;
   _isSubmitting=true;
   const btn=document.getElementById('sub-btn');
   btn.disabled=true;btn.innerHTML=`<span class="spin"></span> ${S.editMode?'Saving…':'Submitting…'}`;
@@ -1130,6 +1145,7 @@ function cancelEdit(){
   document.getElementById('sub-btn').innerHTML='SUBMIT BRACKET →';
   document.getElementById('f-name').readOnly=false;document.getElementById('f-group').readOnly=false;
   document.getElementById('f-name').value='';document.getElementById('f-group').value='';
+  const _fp=document.getElementById('f-pin');if(_fp)_fp.value='';
   document.querySelectorAll('input[name^=m],input[name=semi],input[name=champion]').forEach(el=>{el.checked=false;el.disabled=false;});
   document.querySelectorAll('.mrow').forEach(r=>r.classList.remove('picked'));
   document.getElementById('semi-cnt').textContent='0';
