@@ -468,7 +468,7 @@ const PTS={match:2,semi:5,winner:10};
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let S={
   brackets:[], // [{groupId,pickId,picks,locked}]
-  activeGid:null,
+  activePickId:null,
   results:{},
   editMode:false,
   editGid:null,
@@ -495,12 +495,13 @@ function goTab(name){showTab(name,document.querySelectorAll('.nb')[[,'my','group
 window.addEventListener('DOMContentLoaded',async()=>{
   buildForm();
   S.brackets=ls.get('ipl_brackets')||[];
-  S.activeGid=ls.get('ipl_activeGid');
-  // Set active to first bracket if not set
-  if(!S.activeGid&&S.brackets.length) S.activeGid=S.brackets[0].groupId;
+  S.activePickId=ls.get('ipl_activePickId');
+  // Migrate from old groupId-based key
+  if(!S.activePickId){const oldGid=ls.get('ipl_activeGid');if(oldGid){const b=S.brackets.find(x=>x.groupId===oldGid);if(b)S.activePickId=b.pickId;}}
+  if(!S.activePickId&&S.brackets.length) S.activePickId=S.brackets[0].pickId;
   await loadResults();
   renderMy();
-  if(S.activeGid)loadGroup();
+  if(S.activePickId)loadGroup();
   setInterval(async()=>{await loadResults();renderMy();if(document.getElementById('tab-group').classList.contains('active'))loadGroup();},5*60*1000);
 });
 
@@ -562,7 +563,7 @@ function renderMy(){
   if(!all.length)return;
 
   // Ensure active bracket exists
-  if(!S.activeGid||!all.find(b=>b.groupId===S.activeGid)) S.activeGid=all[0].groupId;
+  if(!S.activePickId||!all.find(b=>b.pickId===S.activePickId)) S.activePickId=all[0].pickId;
 
   // Switcher pills
   const sw=document.getElementById('switcher-wrap');
@@ -572,14 +573,14 @@ function renderMy(){
     all.forEach(b=>{
       const sc=score(b.picks,S.results);
       const p=document.createElement('button');
-      p.className='bpill'+(b.groupId===S.activeGid?' active':'');
+      p.className='bpill'+(b.pickId===S.activePickId?' active':'');
       p.innerHTML=`<span class="bpill-grp">${b.groupId}</span>${b.picks.name}<span class="bpill-pts">${sc.pts}pts</span>`;
-      p.onclick=()=>{S.activeGid=b.groupId;ls.set('ipl_activeGid',b.groupId);renderMy();};
+      p.onclick=()=>{S.activePickId=b.pickId;ls.set('ipl_activePickId',b.pickId);renderMy();if(document.getElementById('tab-group').classList.contains('active'))loadGroup();};
       pills.appendChild(p);
     });
   }else sw.style.display='none';
 
-  const active=all.find(b=>b.groupId===S.activeGid)||all[0];
+  const active=all.find(b=>b.pickId===S.activePickId)||all[0];
   const picks=active.picks;
   const {pts,breakdown}=score(picks,S.results);
   const mx=maxPts(picks,S.results);
@@ -590,7 +591,7 @@ function renderMy(){
   document.getElementById('my-bar').style.width=pct+'%';
 
   // Group rank from cached leaderboard (if available in local group data)
-  document.getElementById('my-group-label').textContent='Group '+S.activeGid;
+  document.getElementById('my-group-label').textContent='Group '+active.groupId;
   document.getElementById('my-rank').textContent='—'; // will refresh when group loads
 
   // Edit button
@@ -626,7 +627,7 @@ function renderMy(){
   });
 
   // Other brackets
-  const others=all.filter(b=>b.groupId!==S.activeGid);
+  const others=all.filter(b=>b.pickId!==S.activePickId);
   const ow=document.getElementById('other-wrap');
   const ol=document.getElementById('other-list');
   if(others.length){
@@ -670,7 +671,7 @@ function renderMy(){
               <span class="chip ${st==='correct'?'chip-green':st==='incorrect'?'chip-red':'chip-gold'}" style="font-size:9px;padding:2px 5px;">${st==='correct'?'+2':st==='incorrect'?'✗':'?'}</span></div>`;}).join('')}
         </div>
         <div class="ob-actions">
-          <button class="bpill active" onclick="S.activeGid='${b.groupId}';ls.set('ipl_activeGid','${b.groupId}');renderMy();window.scrollTo({top:0,behavior:'smooth'});">👁 View Active</button>
+          <button class="bpill active" onclick="S.activePickId='${b.pickId}';ls.set('ipl_activePickId','${b.pickId}');renderMy();window.scrollTo({top:0,behavior:'smooth'});">👁 View Active</button>
           ${!b.locked?`<button class="edit-btn" onclick="startEdit('${b.groupId}','${b.picks.name}')">✏️ Edit</button>`:`<div class="locked-note">🔒 Locked</div>`}
         </div>
       </div>`;
@@ -680,13 +681,14 @@ function renderMy(){
 }
 
 function editActive(){
-  const b=S.brackets.find(x=>x.groupId===S.activeGid);
+  const b=S.brackets.find(x=>x.pickId===S.activePickId);
   if(b)startEdit(b.groupId,b.picks.name);
 }
 
 // ─── GROUP LEADERBOARD ────────────────────────────────────────────────────────
 async function loadGroup(){
-  const gid=S.activeGid;
+  const activeBracket=S.brackets.find(b=>b.pickId===S.activePickId)||S.brackets[0];
+  const gid=activeBracket?.groupId;
   if(!gid)return;
   try{
     const r=await fetch(`${API}/api/group/${gid}`);
@@ -716,7 +718,8 @@ function renderLB(data){
   if(!lb.length){body.innerHTML=`<div style="text-align:center;padding:48px;color:var(--muted);">No picks submitted yet.</div>`;return;}
 
   body.innerHTML='';
-  const myName=S.brackets.find(b=>b.groupId===data.id)?.picks?.name?.toLowerCase().trim();
+  const activeBracket=S.brackets.find(b=>b.pickId===S.activePickId);
+  const myName=(activeBracket?.groupId===data.id?activeBracket:S.brackets.find(b=>b.groupId===data.id))?.picks?.name?.toLowerCase().trim();
   const maxRank=Math.max(...lb.map(e=>e.rank||1));
 
   lb.forEach(entry=>{
@@ -837,7 +840,7 @@ async function submitPicks(){
 
     const finalPayload={...payload,submittedAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
     upsertBracket(gid,data.pickId,finalPayload,false);
-    S.activeGid=gid;ls.set('ipl_activeGid',gid);
+    S.activePickId=data.pickId;ls.set('ipl_activePickId',data.pickId);
 
     toast(S.editMode?'✅ Bracket updated!':'🏏 Bracket submitted!');
     if(S.editMode)cancelEdit();

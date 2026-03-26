@@ -204,7 +204,7 @@ async function syncResults() {
 
 // ─── Leaderboard recompute ────────────────────────────────────────────────────
 
-const { scoreBracket, rankLeaderboard, normalizeTeamName } = require('../src/matches');
+const { scoreBracket, rankLeaderboard } = require('../src/matches');
 
 async function recomputeLeaderboards(results) {
   console.log('  Recomputing leaderboards...');
