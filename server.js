@@ -1,11 +1,18 @@
 // server.js
 'use strict';
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const cron    = require('node-cron');
-const path    = require('path');
-const admin   = require('firebase-admin');
+
+// ─── Startup env validation ───────────────────────────────────────────────────
+const REQUIRED_ENV = ['FIREBASE_PROJECT_ID','FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY','ADMIN_PASSWORD'];
+const _missing = REQUIRED_ENV.filter(v => !process.env[v]);
+if (_missing.length) { console.error('❌ Missing required env vars:', _missing.join(', ')); process.exit(1); }
+
+const express    = require('express');
+const rateLimit  = require('express-rate-limit');
+const cors       = require('cors');
+const cron       = require('node-cron');
+const path       = require('path');
+const admin      = require('firebase-admin');
 
 const { MATCHES, scoreBracket, maxPossible, rankLeaderboard } = require('./src/matches');
 const { syncResults } = require('./api/sync-results');
@@ -23,18 +30,25 @@ const db = admin.firestore();
 // ─── Cached results (avoids repeated Firestore reads on every request) ────────
 let _resultsCache = null;
 let _resultsCacheTime = 0;
+let _resultsCachePromise = null; // prevents concurrent reads on cache miss
 const RESULTS_TTL_MS = 60_000; // re-fetch at most once per minute
 
 async function getResults() {
   const now = Date.now();
   if (_resultsCache && now - _resultsCacheTime < RESULTS_TTL_MS) return _resultsCache;
-  const snap = await db.collection('ipl2026').doc('results').get();
-  _resultsCache = snap.exists ? snap.data() : { matches:{}, semis:[], champion:null };
-  _resultsCacheTime = now;
-  return _resultsCache;
+  if (_resultsCachePromise) return _resultsCachePromise; // coalesce concurrent misses
+  _resultsCachePromise = db.collection('ipl2026').doc('results').get()
+    .then(snap => {
+      _resultsCache = snap.exists ? snap.data() : { matches:{}, semis:[], champion:null };
+      _resultsCacheTime = Date.now();
+      _resultsCachePromise = null;
+      return _resultsCache;
+    })
+    .catch(e => { _resultsCachePromise = null; throw e; });
+  return _resultsCachePromise;
 }
 
-function invalidateResultsCache() { _resultsCache = null; }
+function invalidateResultsCache() { _resultsCache = null; _resultsCacheTime = 0; }
 
 // ─── Leaderboard recompute (batched write, one read per group) ────────────────
 async function recomputeGroup(groupId, results) {
@@ -59,6 +73,7 @@ async function recomputeGroup(groupId, results) {
   const lean = ranked.map(({ breakdown: _bd, ...rest }) => rest);
   await db.collection('groups').doc(groupId).update({
     leaderboard: lean,
+    memberCount: lean.length,
     lastScored: new Date().toISOString(),
   });
   return lean;
@@ -77,9 +92,26 @@ function makePickId(name, gid) {
 // ─── App ─────────────────────────────────────────────────────────────────────
 const app  = express();
 const PORT = process.env.PORT || 3000;
+app.set('trust proxy', 1); // required for rate-limit + HTTPS detection behind Render/Railway
+
+// HTTPS redirect in production (Render/Railway terminate SSL at proxy)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(301, `https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Rate limiting (picks submission only) ───────────────────────────────────
+const picksLimiter = rateLimit({
+  windowMs: 60_000, max: 15,
+  standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down' },
+});
 
 function adminAuth(req, res, next) {
   const pw = req.headers['x-admin-password'] || req.body?.adminPassword;
@@ -169,7 +201,11 @@ async function handlePicksSubmit(req, res, forceEdit) {
       submittedAt: existDoc.exists ? existDoc.data().submittedAt : now,
       updatedAt: now,
     };
+    const isNew = !existDoc.exists;
     await picksRef.set(payload);
+    // Keep memberCount in sync without an extra reads — recomputeGroup also sets it,
+    // but incrementing here ensures the admin dashboard stays accurate immediately.
+    if (isNew) await groupRef.update({ memberCount: admin.firestore.FieldValue.increment(1) });
 
     const results = await getResults();
     const { pts, breakdown } = scoreBracket(payload, results);
@@ -182,8 +218,8 @@ async function handlePicksSubmit(req, res, forceEdit) {
   } catch (e) { console.error(e); res.status(500).json({ error:e.message }); }
 }
 
-app.post('/api/picks', (req,res) => handlePicksSubmit(req,res,false));
-app.put ('/api/picks', (req,res) => handlePicksSubmit(req,res,true));
+app.post('/api/picks', picksLimiter, (req,res) => handlePicksSubmit(req,res,false));
+app.put ('/api/picks', picksLimiter, (req,res) => handlePicksSubmit(req,res,true));
 
 // ════════════════════════════════════════════════════════════════════════════
 //  ADMIN ROUTES
@@ -256,9 +292,8 @@ app.delete('/api/admin/group/:groupId/picks/:pickId', adminAuth, async (req, res
     const gid = req.params.groupId.toUpperCase();
     const ref = db.collection('groups').doc(gid).collection('picks').doc(req.params.pickId);
     await ref.delete();
-    // Update memberCount
-    const remaining = (await db.collection('groups').doc(gid).collection('picks').get()).size;
-    await db.collection('groups').doc(gid).update({ memberCount: remaining });
+    // Decrement atomically — no need to re-fetch all picks just to count
+    await db.collection('groups').doc(gid).update({ memberCount: admin.firestore.FieldValue.increment(-1) });
     const results = await getResults();
     await recomputeGroup(gid, results);
     res.json({ ok:true });
@@ -315,10 +350,12 @@ app.get('*', (_, res) => res.sendFile(path.join(__dirname,'public','index.html')
 
 // ─── CRON ────────────────────────────────────────────────────────────────────
 const mins = parseInt(process.env.SYNC_INTERVAL_MINUTES || '30');
-cron.schedule(`*/${mins} * * * *`, async () => {
-  try { invalidateResultsCache(); await syncResults(); }
-  catch (e) { console.error('Cron sync failed:', e.message); }
-});
+if (process.env.NODE_ENV !== 'test') {
+  cron.schedule(`*/${mins} * * * *`, async () => {
+    try { invalidateResultsCache(); await syncResults(); }
+    catch (e) { console.error('Cron sync failed:', e.message); }
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`\n🏏 IPL Madness 2K26 → http://localhost:${PORT}`);

@@ -348,7 +348,23 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 
 <!-- ═══ GROUP ═══ -->
 <div id="tab-group" class="tab">
-  <div class="group-strip">
+
+  <!-- Group code lookup (always visible, works without a saved bracket) -->
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
+    <input class="finput" id="gc-input" type="text" placeholder="Group Code (e.g. CL2026)" style="text-transform:uppercase;width:220px;max-width:100%;" onkeydown="if(event.key==='Enter')viewGroup()">
+    <button class="edit-btn" onclick="viewGroup()">View Group →</button>
+  </div>
+
+  <!-- Load bracket on new device -->
+  <div id="load-bracket-bar" style="display:none;background:var(--bg3);border:1px solid var(--gold-b);border-radius:10px;padding:13px 18px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:12px;color:var(--muted);flex:1;">On a new device? Load your existing bracket by name.</span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input class="finput" id="lb-name-input" type="text" placeholder="Your name" style="width:160px;">
+      <button class="edit-btn" onclick="loadMyBracketFromServer()">Load My Bracket</button>
+    </div>
+  </div>
+
+  <div id="group-strip" class="group-strip">
     <div>
       <div class="gs-name" id="gs-name">MY <em>GROUP</em></div>
       <div class="gs-meta">Code: <strong style="color:var(--gold);font-family:'Space Mono',monospace;" id="gs-code">—</strong>
@@ -473,6 +489,7 @@ let S={
   editMode:false,
   editGid:null,
 };
+let _viewingGroupId=null;
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
 const ls={
@@ -487,7 +504,14 @@ function showTab(name,btn){
   document.getElementById('tab-'+name).classList.add('active');
   if(btn)btn.classList.add('active');
   if(name==='my')renderMy();
-  if(name==='group')loadGroup();
+  if(name==='group'){
+    // Keep gc-input in sync with current active bracket's group
+    const ab=S.brackets.find(b=>b.pickId===S.activePickId)||S.brackets[0];
+    if(ab&&!_viewingGroupId){_viewingGroupId=ab.groupId;}
+    const gc=document.getElementById('gc-input');
+    if(gc&&(_viewingGroupId||ab?.groupId))gc.value=_viewingGroupId||ab?.groupId||'';
+    loadGroup();
+  }
 }
 function goTab(name){showTab(name,document.querySelectorAll('.nb')[[,'my','group','enter'].indexOf(name)]);}
 
@@ -499,9 +523,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
   // Migrate from old groupId-based key
   if(!S.activePickId){const oldGid=ls.get('ipl_activeGid');if(oldGid){const b=S.brackets.find(x=>x.groupId===oldGid);if(b)S.activePickId=b.pickId;}}
   if(!S.activePickId&&S.brackets.length) S.activePickId=S.brackets[0].pickId;
+  // Pre-seed viewing group from active bracket
+  const _initB=S.brackets.find(b=>b.pickId===S.activePickId)||S.brackets[0];
+  if(_initB)_viewingGroupId=_initB.groupId;
   await loadResults();
   renderMy();
-  if(S.activePickId)loadGroup();
+  if(_viewingGroupId)loadGroup();
   setInterval(async()=>{await loadResults();renderMy();if(document.getElementById('tab-group').classList.contains('active'))loadGroup();},5*60*1000);
 });
 
@@ -686,21 +713,52 @@ function editActive(){
 }
 
 // ─── GROUP LEADERBOARD ────────────────────────────────────────────────────────
-async function loadGroup(){
+async function loadGroup(overrideGid){
   const activeBracket=S.brackets.find(b=>b.pickId===S.activePickId)||S.brackets[0];
-  const gid=activeBracket?.groupId;
-  if(!gid)return;
+  const gid=(overrideGid||_viewingGroupId||activeBracket?.groupId)?.toUpperCase();
+  if(!gid){
+    document.getElementById('group-strip').style.display='none';
+    document.getElementById('lb-body').innerHTML=`<div style="text-align:center;padding:48px;color:var(--muted);">Enter a group code above to view a leaderboard.</div>`;
+    return;
+  }
+  _viewingGroupId=gid;
   try{
     const r=await fetch(`${API}/api/group/${gid}`);
     if(!r.ok)throw new Error('Group not found');
     const data=await r.json();
+    document.getElementById('group-strip').style.display='';
     renderLB(data);
   }catch(e){
+    document.getElementById('group-strip').style.display='none';
     document.getElementById('lb-body').innerHTML=`<div style="text-align:center;padding:48px;color:var(--muted);">Could not load group. Check your group code.</div>`;
   }
 }
 
+function viewGroup(){
+  const code=document.getElementById('gc-input').value.trim().toUpperCase();
+  if(!code)return toast('Enter a group code',true);
+  loadGroup(code);
+}
+
+async function loadMyBracketFromServer(){
+  const name=document.getElementById('lb-name-input').value.trim();
+  if(!name)return toast('Enter your name',true);
+  const gid=_viewingGroupId;
+  if(!gid)return toast('View a group first',true);
+  try{
+    const r=await fetch(`${API}/api/picks/check?name=${encodeURIComponent(name)}&groupId=${gid}`);
+    const data=await r.json();
+    if(!data.exists)return toast('No bracket found for that name in this group',true);
+    upsertBracket(gid,data.pickId,data.picks,data.locked);
+    S.activePickId=data.pickId;ls.set('ipl_activePickId',data.pickId);
+    toast('Bracket loaded!');
+    renderMy();
+    loadGroup();
+  }catch(e){toast(e.message,true);}
+}
+
 function renderLB(data){
+  const gcEl=document.getElementById('gc-input');if(gcEl)gcEl.value=data.id||'';
   document.getElementById('gs-name').innerHTML=data.name||'MY <em>GROUP</em>';
   document.getElementById('gs-code').textContent=data.id||'';
   const lb=data.leaderboard||[];
@@ -713,6 +771,10 @@ function renderLB(data){
   const notice=document.getElementById('lb-notice');
   if(!data.locked)notice.textContent='🔒 Picks are hidden until the admin locks the group — only your own picks are visible.';
   else notice.textContent='';
+
+  // Show "load bracket" bar if user has no local bracket for this group
+  const lbb=document.getElementById('load-bracket-bar');
+  lbb.style.display=S.brackets.some(b=>b.groupId===data.id)?'none':'flex';
 
   const body=document.getElementById('lb-body');
   if(!lb.length){body.innerHTML=`<div style="text-align:center;padding:48px;color:var(--muted);">No picks submitted yet.</div>`;return;}
@@ -749,6 +811,14 @@ function renderLB(data){
     if(data.locked){
       detRow.innerHTML=buildDetail(entry);
       row.addEventListener('click',()=>detRow.classList.toggle('open'));
+    } else if(isMe){
+      // Pre-lock: show own picks from local bracket data
+      const myB=S.brackets.find(b=>b.pickId===S.activePickId&&b.groupId===data.id)||S.brackets.find(b=>b.groupId===data.id&&b.picks.name.toLowerCase().trim()===myName);
+      if(myB){
+        const {breakdown}=score(myB.picks,S.results);
+        detRow.innerHTML=buildDetail({...entry,champion:myB.picks.champion,correctLeague:breakdown.league.filter(l=>l.status==='correct').length,breakdown});
+        row.addEventListener('click',()=>detRow.classList.toggle('open'));
+      }
     }
     body.appendChild(row);
     body.appendChild(detRow);
