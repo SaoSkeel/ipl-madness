@@ -385,6 +385,9 @@ function renderLB(data){
   if(S.results.lastSynced)document.getElementById('gs-sync').textContent=ago(new Date(S.results.lastSynced));
   if(data.locked){document.getElementById('gs-lock').style.display='inline-flex';}else{document.getElementById('gs-lock').style.display='none';}
 
+  const bcLink=document.getElementById('bc-link');
+  if(bcLink&&data.id){bcLink.href=`/bracketcast.html?group=${data.id}`;bcLink.style.display=data.locked?'inline-flex':'none';}
+
   const notice=document.getElementById('lb-notice');
   if(!data.locked)notice.textContent='🔒 Picks are hidden until the admin locks the group — only your own picks are visible.';
   else notice.textContent='';
