@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "sync": "node api/sync-results.js"
+    "sync": "node api/_lib/sync.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
