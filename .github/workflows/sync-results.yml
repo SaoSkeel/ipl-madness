@@ -13,7 +13,7 @@ jobs:
         run: |
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
           -H "x-admin-password: ${{ secrets.ADMIN_PASSWORD }}" \
-          https://https://ipl-madness.onrender.com/api/admin/sync)
+          https://ipl-madness.onrender.com/api/admin/sync)
 
           echo "::set-output name=status_code::$RESPONSE"
 
