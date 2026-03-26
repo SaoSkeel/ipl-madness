@@ -196,10 +196,7 @@ async function syncResults() {
     await recomputeLeaderboards(payload);
   } else {
     console.log('  No changes detected.');
-    await resultsRef.set(
-      { lastSynced: new Date().toISOString() },
-      { merge: true }
-    );
+    await resultsRef.update({ lastSynced: new Date().toISOString() });
   }
 
   return { ok: true, changed, matchesKnown: Object.keys(updatedMatches).length };
@@ -207,45 +204,33 @@ async function syncResults() {
 
 // ─── Leaderboard recompute ────────────────────────────────────────────────────
 
-const { scoreBracket, sortLeaderboard } = require('../src/matches');
+const { scoreBracket, rankLeaderboard, normalizeTeamName } = require('../src/matches');
 
 async function recomputeLeaderboards(results) {
   console.log('  Recomputing leaderboards...');
-
-  // Get all groups
+  const { maxPossible } = require('../src/matches');
   const groupsSnap = await db.collection('groups').get();
-  for (const groupDoc of groupsSnap.docs) {
+  await Promise.all(groupsSnap.docs.map(async groupDoc => {
     const groupId = groupDoc.id;
-
-    // Get all picks for this group
-    const picksSnap = await db.collection('groups').doc(groupId)
-      .collection('picks').get();
-
-    const entries = [];
-    for (const pickDoc of picksSnap.docs) {
-      const picks = pickDoc.data();
-      const scored = scoreBracket(picks, results);
-      entries.push({
-        uid: pickDoc.id,
-        name: picks.name,
-        pts: scored.pts,
-        maxPts: scored.maxPts,
-        tbDiff: scored.tbDiff,
-        tiebreaker: scored.tiebreaker,
-        champion: picks.champion,
-        correctLeague: scored.breakdown.league.filter(l=>l.status==='correct').length,
-        breakdown: scored.breakdown,
-      });
-    }
-
-    const sorted = sortLeaderboard(entries).map((e, i) => ({ ...e, rank: i+1 }));
-
+    const picksSnap = await db.collection('groups').doc(groupId).collection('picks').get();
+    const entries = picksSnap.docs.map(d => {
+      const p = d.data();
+      const { pts, breakdown } = scoreBracket(p, results);
+      const mx = maxPossible(p, results);
+      return {
+        uid: d.id, name: p.name, pts, maxPts: mx,
+        champion: p.champion,
+        correctLeague: breakdown.league.filter(l => l.status === 'correct').length,
+      };
+    });
+    const ranked = rankLeaderboard(entries);
     await db.collection('groups').doc(groupId).update({
-      leaderboard: sorted,
+      leaderboard: ranked,
+      memberCount: entries.length,
       lastScored: new Date().toISOString(),
     });
-    console.log(`    Group ${groupId}: ${entries.length} entries re-scored`);
-  }
+    console.log(`    Group ${groupId}: ${entries.length} entries scored`);
+  }));
 }
 
 // ── Run if called directly ──

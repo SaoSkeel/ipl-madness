@@ -1,25 +1,78 @@
-// ─── server.js ───────────────────────────────────────────────────────────────
+// server.js
+'use strict';
 require('dotenv').config();
-const express    = require('express');
-const cors       = require('cors');
-const cron       = require('node-cron');
-const path       = require('path');
-const admin      = require('firebase-admin');
+const express = require('express');
+const cors    = require('cors');
+const cron    = require('node-cron');
+const path    = require('path');
+const admin   = require('firebase-admin');
 
-const { MATCHES, TEAMS, scoreBracket, sortLeaderboard } = require('./src/matches');
-const { syncResults, recomputeLeaderboards }             = require('./api/sync-results');
+const { MATCHES, scoreBracket, maxPossible, rankLeaderboard } = require('./src/matches');
+const { syncResults } = require('./api/sync-results');
 
-// ─── Firebase ────────────────────────────────────────────────────────────────
+// ─── Firebase (singleton) ────────────────────────────────────────────────────
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
+  admin.initializeApp({ credential: admin.credential.cert({
+    projectId:   process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g,'\n'),
+  })});
 }
 const db = admin.firestore();
+
+// ─── Cached results (avoids repeated Firestore reads on every request) ────────
+let _resultsCache = null;
+let _resultsCacheTime = 0;
+const RESULTS_TTL_MS = 60_000; // re-fetch at most once per minute
+
+async function getResults() {
+  const now = Date.now();
+  if (_resultsCache && now - _resultsCacheTime < RESULTS_TTL_MS) return _resultsCache;
+  const snap = await db.collection('ipl2026').doc('results').get();
+  _resultsCache = snap.exists ? snap.data() : { matches:{}, semis:[], champion:null };
+  _resultsCacheTime = now;
+  return _resultsCache;
+}
+
+function invalidateResultsCache() { _resultsCache = null; }
+
+// ─── Leaderboard recompute (batched write, one read per group) ────────────────
+async function recomputeGroup(groupId, results) {
+  const picksSnap = await db.collection('groups').doc(groupId).collection('picks').get();
+  const entries = picksSnap.docs.map(d => {
+    const p = d.data();
+    const { pts, breakdown } = scoreBracket(p, results);
+    const mx = maxPossible(p, results);
+    return {
+      uid: d.id,
+      name: p.name,
+      pts,
+      maxPts: mx,
+      champion: p.champion,
+      correctLeague: breakdown.league.filter(l => l.status === 'correct').length,
+      breakdown,
+    };
+  });
+
+  const ranked = rankLeaderboard(entries);
+  // Store lean leaderboard (no full breakdown to save Firestore bytes)
+  const lean = ranked.map(({ breakdown: _bd, ...rest }) => rest);
+  await db.collection('groups').doc(groupId).update({
+    leaderboard: lean,
+    lastScored: new Date().toISOString(),
+  });
+  return lean;
+}
+
+async function recomputeAllGroups(results) {
+  const snap = await db.collection('groups').get();
+  await Promise.all(snap.docs.map(d => recomputeGroup(d.id, results)));
+}
+
+// ─── Stable pickId: groupId__name_slug (1 bracket per name per group) ────────
+function makePickId(name, gid) {
+  return `${gid}__${name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_')}`;
+}
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 const app  = express();
@@ -28,244 +81,115 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── Auth middleware (admin only) ─────────────────────────────────────────────
 function adminAuth(req, res, next) {
   const pw = req.headers['x-admin-password'] || req.body?.adminPassword;
   if (pw !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error:'Unauthorized' });
   next();
 }
 
-// ─── ROUTES ──────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  PUBLIC ROUTES
+// ════════════════════════════════════════════════════════════════════════════
 
-// Health check
-app.get('/api/health', (_, res) => res.json({ ok:true, time: new Date().toISOString() }));
+app.get('/api/health', (_, res) => res.json({ ok:true, time:new Date().toISOString() }));
 
-// Get current results + last sync time
+// Current results (cached)
 app.get('/api/results', async (req, res) => {
-  try {
-    const snap = await db.collection('ipl2026').doc('results').get();
-    if (!snap.exists) return res.json({ matches:{}, semis:[], champion:null, finalRuns:null, lastSynced:null });
-    res.json(snap.data());
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await getResults()); }
+  catch (e) { res.status(500).json({ error:e.message }); }
 });
 
-// ── Helper: stable pickId from name + groupId (1 bracket per player per group) ──
-function makePickId(name, groupId) {
-  return groupId.toUpperCase() + '__' + name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-}
-
-// Submit OR edit bracket picks
-// POST creates; PUT updates (only if group not locked)
-// Body: { name, groupId, matches:{1:'Team',...}, semis:['A','B','C','D'], champion:'X', tiebreaker:340 }
-async function handlePicksSubmit(req, res, isEdit = false) {
+// Group leaderboard — hides picks detail if group is not locked (fairness)
+app.get('/api/group/:groupId', async (req, res) => {
   try {
-    const { name, groupId, matches, semis, champion, tiebreaker } = req.body;
+    const gid = req.params.groupId.toUpperCase();
+    const doc = await db.collection('groups').doc(gid).get();
+    if (!doc.exists) return res.status(404).json({ error:'Group not found' });
+    const data = doc.data();
 
-    // ── Validation ──
-    if (!name?.trim()) return res.status(400).json({ error:'Name required' });
-    if (!groupId?.trim()) return res.status(400).json({ error:'Group ID required' });
-    if (!matches || Object.keys(matches).length !== MATCHES.length)
-      return res.status(400).json({ error:`Must pick all ${MATCHES.length} league matches` });
-    if (!semis || semis.length !== 4)
-      return res.status(400).json({ error:'Must pick exactly 4 semifinalists' });
-    if (!champion) return res.status(400).json({ error:'Must pick a champion' });
-    if (!tiebreaker || tiebreaker < 100 || tiebreaker > 600)
-      return res.status(400).json({ error:'Tiebreaker must be between 100–600' });
+    // If not locked, strip all pick details from leaderboard — only expose rank+pts+name
+    const lb = (data.leaderboard || []).map(e => {
+      if (!data.locked) {
+        // Pre-lock: players can only see their own rank & pts, not others' picks
+        return { rank:e.rank, name:e.name, pts:e.pts, maxPts:e.maxPts };
+      }
+      return e; // locked: full data visible
+    });
 
-    // ── Check group exists ──
-    const gid = groupId.trim().toUpperCase();
-    const groupRef = db.collection('groups').doc(gid);
-    const groupDoc = await groupRef.get();
-    if (!groupDoc.exists) return res.status(404).json({ error:'Group not found. Ask your group admin for the code.' });
+    res.json({ id:gid, name:data.name, locked:data.locked||false, leaderboard:lb, lastScored:data.lastScored||null });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
 
-    const groupData = groupDoc.data();
-    if (groupData.locked) return res.status(403).json({ error:'Bracket submissions are closed for this group.' });
-
-    // ── Stable pickId: one per player per group ──
-    const pickId = makePickId(name, gid);
-    const picksRef = groupRef.collection('picks').doc(pickId);
-    const existingDoc = await picksRef.get();
-
-    if (!isEdit && existingDoc.exists) {
-      // POST on existing bracket → block and tell client to use PUT (edit)
-      return res.status(409).json({
-        error: 'You already have a bracket in this group.',
-        pickId,
-        canEdit: true,
-      });
-    }
-
-    const now = new Date().toISOString();
-    const payload = {
-      name: name.trim(),
-      groupId: gid,
-      matches,
-      semis,
-      champion,
-      tiebreaker: parseInt(tiebreaker),
-      submittedAt: existingDoc.exists ? existingDoc.data().submittedAt : now,
-      updatedAt: now,
-    };
-
-    await picksRef.set(payload);
-
-    // ── Score immediately ──
-    const resultsSnap = await db.collection('ipl2026').doc('results').get();
-    const results = resultsSnap.exists ? resultsSnap.data() : {};
-    const scored = scoreBracket(payload, results);
-
-    // ── Recompute group leaderboard ──
-    await recomputeLeaderboards(results);
-
-    res.json({ ok:true, pickId, isEdit: isEdit || existingDoc.exists, scored });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-}
-
-app.post('/api/picks', (req, res) => handlePicksSubmit(req, res, false));
-app.put('/api/picks', (req, res) => handlePicksSubmit(req, res, true));
-
-// Check if a bracket already exists for name+group (used by frontend before rendering form)
+// Check existing bracket (for edit detection)
 app.get('/api/picks/check', async (req, res) => {
   try {
     const { name, groupId } = req.query;
     if (!name || !groupId) return res.status(400).json({ error:'name and groupId required' });
-    const gid = groupId.trim().toUpperCase();
+    const gid    = groupId.trim().toUpperCase();
     const pickId = makePickId(name, gid);
-    const snap = await db.collection('groups').doc(gid).collection('picks').doc(pickId).get();
-
-    // Also check if group is locked
-    const groupDoc = await db.collection('groups').doc(gid).get();
-    const locked = groupDoc.exists ? groupDoc.data().locked : false;
-
-    if (!snap.exists) return res.json({ exists: false, pickId, locked });
-    const data = snap.data();
-    res.json({ exists: true, pickId, locked, picks: data });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const [pickSnap, groupSnap] = await Promise.all([
+      db.collection('groups').doc(gid).collection('picks').doc(pickId).get(),
+      db.collection('groups').doc(gid).get(),
+    ]);
+    const locked = groupSnap.exists ? groupSnap.data().locked : false;
+    if (!pickSnap.exists) return res.json({ exists:false, pickId, locked });
+    res.json({ exists:true, pickId, locked, picks:pickSnap.data() });
+  } catch (e) { res.status(500).json({ error:e.message }); }
 });
 
-// Get group leaderboard
-app.get('/api/group/:groupId', async (req, res) => {
+// Submit (POST=new, PUT=edit) — multiple brackets per group allowed (by different names)
+async function handlePicksSubmit(req, res, forceEdit) {
   try {
-    const groupRef = db.collection('groups').doc(req.params.groupId.toUpperCase());
+    const { name, groupId, matches, semis, champion } = req.body;
+
+    if (!name?.trim())   return res.status(400).json({ error:'Name required' });
+    if (!groupId?.trim()) return res.status(400).json({ error:'Group ID required' });
+    if (!matches || Object.keys(matches).length !== MATCHES.length)
+      return res.status(400).json({ error:`Pick all ${MATCHES.length} matches` });
+    if (!semis || semis.length !== 4) return res.status(400).json({ error:'Pick exactly 4 semifinalists' });
+    if (!champion) return res.status(400).json({ error:'Pick a champion' });
+
+    const gid      = groupId.trim().toUpperCase();
+    const groupRef = db.collection('groups').doc(gid);
     const groupDoc = await groupRef.get();
     if (!groupDoc.exists) return res.status(404).json({ error:'Group not found' });
+    if (groupDoc.data().locked) return res.status(403).json({ error:'Group is locked' });
 
-    const data = groupDoc.data();
-    res.json({
-      id: req.params.groupId.toUpperCase(),
-      name: data.name,
-      locked: data.locked || false,
-      leaderboard: data.leaderboard || [],
-      lastScored: data.lastScored || null,
-    });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+    const pickId    = makePickId(name, gid);
+    const picksRef  = groupRef.collection('picks').doc(pickId);
+    const existDoc  = await picksRef.get();
 
-// Get my picks (by pickId)
-app.get('/api/picks/:pickId', async (req, res) => {
-  try {
-    // pickId format: groupId/uid — we search across groups
-    const [groupId, ...rest] = req.params.pickId.split('_');
-    // Actually just search by stored pickId
-    const snap = await db.collectionGroup('picks')
-      .where(admin.firestore.FieldPath.documentId(), '==', req.params.pickId)
-      .get();
-    if (snap.empty) return res.status(404).json({ error:'Picks not found' });
+    if (!forceEdit && existDoc.exists) {
+      return res.status(409).json({ error:'Bracket already exists for this name in this group.', pickId, canEdit:true });
+    }
 
-    const picks = snap.docs[0].data();
-    const resultsSnap = await db.collection('ipl2026').doc('results').get();
-    const results = resultsSnap.exists ? resultsSnap.data() : {};
-    const scored = scoreBracket(picks, results);
+    const now = new Date().toISOString();
+    const payload = {
+      name: name.trim(), groupId: gid, matches, semis, champion,
+      submittedAt: existDoc.exists ? existDoc.data().submittedAt : now,
+      updatedAt: now,
+    };
+    await picksRef.set(payload);
 
-    res.json({ picks, scored, results });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+    const results = await getResults();
+    const { pts, breakdown } = scoreBracket(payload, results);
+    const mx = maxPossible(payload, results);
 
-// ── ADMIN ROUTES ──────────────────────────────────────────────────────────────
+    // Recompute only this group
+    await recomputeGroup(gid, results);
 
-// Create a group
-app.post('/api/admin/group', adminAuth, async (req, res) => {
-  try {
-    const { name, code } = req.body;
-    if (!name || !code) return res.status(400).json({ error:'name and code required' });
-    const id = code.toUpperCase().replace(/\s/g,'').slice(0,8);
-    await db.collection('groups').doc(id).set({
-      name, id, locked:false, leaderboard:[],
-      createdAt: new Date().toISOString(),
-    });
-    res.json({ ok:true, id });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+    res.json({ ok:true, pickId, pts, maxPts:mx, breakdown });
+  } catch (e) { console.error(e); res.status(500).json({ error:e.message }); }
+}
 
-// Lock/unlock group submissions
-app.post('/api/admin/group/:groupId/lock', adminAuth, async (req, res) => {
-  try {
-    const locked = req.body.locked !== false;
-    await db.collection('groups').doc(req.params.groupId.toUpperCase()).update({ locked });
-    res.json({ ok:true, locked });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+app.post('/api/picks', (req,res) => handlePicksSubmit(req,res,false));
+app.put ('/api/picks', (req,res) => handlePicksSubmit(req,res,true));
 
-// Delete a bracket from a group (admin only)
-app.delete('/api/admin/group/:groupId/picks/:pickId', adminAuth, async (req, res) => {
-  try {
-    const gid    = req.params.groupId.toUpperCase();
-    const pickId = req.params.pickId;
-    await db.collection('groups').doc(gid).collection('picks').doc(pickId).delete();
+// ════════════════════════════════════════════════════════════════════════════
+//  ADMIN ROUTES
+// ════════════════════════════════════════════════════════════════════════════
 
-    // Recompute leaderboard after deletion
-    const resultsSnap = await db.collection('ipl2026').doc('results').get();
-    const results = resultsSnap.exists ? resultsSnap.data() : {};
-    await recomputeLeaderboards(results);
-
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Manually override a match result (admin)
-app.post('/api/admin/result', adminAuth, async (req, res) => {
-  try {
-    const { matchId, winner, semis, champion, finalRuns } = req.body;
-    const ref = db.collection('ipl2026').doc('results');
-    const snap = await ref.get();
-    const current = snap.exists ? snap.data() : { matches:{} };
-
-    const update = { matches: { ...current.matches } };
-    if (matchId && winner) update.matches[matchId] = winner;
-    if (semis)      update.semis = semis;
-    if (champion)   update.champion = champion;
-    if (finalRuns != null) update.finalRuns = finalRuns;
-    update.lastSynced = new Date().toISOString();
-    update.manualOverride = true;
-
-    await ref.set(update, { merge:true });
-    await recomputeLeaderboards(update);
-    res.json({ ok:true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Force sync now
-app.post('/api/admin/sync', adminAuth, async (req, res) => {
-  try {
-    const result = await syncResults();
-    res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// List all picks in a group (admin)
-app.get('/api/admin/group/:groupId/picks', adminAuth, async (req, res) => {
-  try {
-    const gid = req.params.groupId.toUpperCase();
-    const snap = await db.collection('groups').doc(gid).collection('picks').get();
-    const picks = snap.docs.map(d => ({ pickId: d.id, ...d.data() }));
-    res.json({ ok: true, picks });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Get admin dashboard data
+// Dashboard: groups + results in one payload (2 reads total)
 app.get('/api/admin/dashboard', adminAuth, async (req, res) => {
   try {
     const [resultsSnap, groupsSnap] = await Promise.all([
@@ -273,34 +197,130 @@ app.get('/api/admin/dashboard', adminAuth, async (req, res) => {
       db.collection('groups').get(),
     ]);
     const results = resultsSnap.exists ? resultsSnap.data() : {};
-    const groups = [];
-    for (const g of groupsSnap.docs) {
-      const picksSnap = await db.collection('groups').doc(g.id).collection('picks').get();
-      groups.push({ ...g.data(), id:g.id, memberCount: picksSnap.size });
-    }
+    // memberCount stored on group doc to avoid subcollection reads
+    const groups = groupsSnap.docs.map(d => ({ id:d.id, ...d.data() }));
     res.json({ results, groups });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error:e.message }); }
 });
 
-// Serve SPA for all non-API routes
-app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// Create group
+app.post('/api/admin/group', adminAuth, async (req, res) => {
+  try {
+    const { name, code } = req.body;
+    if (!name || !code) return res.status(400).json({ error:'name and code required' });
+    const id = code.toUpperCase().replace(/\s/g,'').slice(0,8);
+    await db.collection('groups').doc(id).set({
+      name, id, locked:false, leaderboard:[], memberCount:0,
+      createdAt: new Date().toISOString(),
+    });
+    res.json({ ok:true, id });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
 
-// ─── CRON: Auto-sync results ──────────────────────────────────────────────────
-const intervalMins = parseInt(process.env.SYNC_INTERVAL_MINUTES || '30');
-const cronExpr = `*/${intervalMins} * * * *`;
-console.log(`Setting up auto-sync every ${intervalMins} minutes (${cronExpr})`);
+// Delete entire group + all picks (batched)
+app.delete('/api/admin/group/:groupId', adminAuth, async (req, res) => {
+  try {
+    const gid = req.params.groupId.toUpperCase();
+    const groupRef = db.collection('groups').doc(gid);
+    // Delete all picks first
+    const picksSnap = await groupRef.collection('picks').get();
+    const batch = db.batch();
+    picksSnap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(groupRef);
+    await batch.commit();
+    res.json({ ok:true });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
 
-cron.schedule(cronExpr, async () => {
-  try { await syncResults(); }
+// Lock / unlock
+app.post('/api/admin/group/:groupId/lock', adminAuth, async (req, res) => {
+  try {
+    const locked = req.body.locked !== false;
+    await db.collection('groups').doc(req.params.groupId.toUpperCase()).update({ locked });
+    res.json({ ok:true, locked });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// List picks in a group
+app.get('/api/admin/group/:groupId/picks', adminAuth, async (req, res) => {
+  try {
+    const gid  = req.params.groupId.toUpperCase();
+    const snap = await db.collection('groups').doc(gid).collection('picks').get();
+    res.json({ ok:true, picks: snap.docs.map(d => ({ pickId:d.id, ...d.data() })) });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// Delete one bracket
+app.delete('/api/admin/group/:groupId/picks/:pickId', adminAuth, async (req, res) => {
+  try {
+    const gid = req.params.groupId.toUpperCase();
+    const ref = db.collection('groups').doc(gid).collection('picks').doc(req.params.pickId);
+    await ref.delete();
+    // Update memberCount
+    const remaining = (await db.collection('groups').doc(gid).collection('picks').get()).size;
+    await db.collection('groups').doc(gid).update({ memberCount: remaining });
+    const results = await getResults();
+    await recomputeGroup(gid, results);
+    res.json({ ok:true });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// Manual score/result override — also accepts pointOverrides:{pickId: pts} for direct corrections
+app.post('/api/admin/result', adminAuth, async (req, res) => {
+  try {
+    const { matchId, winner, semis, champion, pointOverrides } = req.body;
+    const ref  = db.collection('ipl2026').doc('results');
+    const snap = await ref.get();
+    const cur  = snap.exists ? snap.data() : { matches:{} };
+
+    const update = { matches:{ ...cur.matches } };
+    if (matchId && winner) update.matches[String(matchId)] = winner;
+    if (semis)    update.semis    = semis;
+    if (champion) update.champion = champion;
+    update.lastSynced    = new Date().toISOString();
+    update.manualOverride = true;
+
+    await ref.set(update, { merge:true });
+    invalidateResultsCache();
+    const results = await getResults();
+
+    // Optional: directly set pts on specific picks (admin override)
+    if (pointOverrides && typeof pointOverrides === 'object') {
+      const batch = db.batch();
+      for (const [pickId, pts] of Object.entries(pointOverrides)) {
+        // pickId format: GROUPID__slug
+        const gid = pickId.split('__')[0];
+        const pRef = db.collection('groups').doc(gid).collection('picks').doc(pickId);
+        batch.update(pRef, { adminPtsOverride: Number(pts) });
+      }
+      await batch.commit();
+    }
+
+    await recomputeAllGroups(results);
+    res.json({ ok:true });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// Force sync
+app.post('/api/admin/sync', adminAuth, async (req, res) => {
+  try {
+    invalidateResultsCache();
+    const result = await syncResults();
+    res.json(result);
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// SPA fallback
+app.get('*', (_, res) => res.sendFile(path.join(__dirname,'public','index.html')));
+
+// ─── CRON ────────────────────────────────────────────────────────────────────
+const mins = parseInt(process.env.SYNC_INTERVAL_MINUTES || '30');
+cron.schedule(`*/${mins} * * * *`, async () => {
+  try { invalidateResultsCache(); await syncResults(); }
   catch (e) { console.error('Cron sync failed:', e.message); }
 });
 
-// ─── START ───────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\n🏏 IPL Madness 2K26 running on http://localhost:${PORT}`);
-  console.log(`   Auto-sync every ${intervalMins} min | Admin panel: /admin.html`);
-  // Sync on startup
-  if (process.env.NODE_ENV !== 'test') {
-    setTimeout(syncResults, 3000);
-  }
+  console.log(`\n🏏 IPL Madness 2K26 → http://localhost:${PORT}`);
+  if (process.env.NODE_ENV !== 'test') setTimeout(() => { invalidateResultsCache(); syncResults(); }, 3000);
 });
