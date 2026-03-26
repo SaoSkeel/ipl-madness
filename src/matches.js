@@ -1,28 +1,8 @@
 // src/matches.js — scoring engine + match data
 'use strict';
 
-const MATCHES = [
-  { id:1,  date:'2026-03-28', label:'03/28', t1:'Royal Challengers Bengaluru', t2:'Sunrisers Hyderabad'          },
-  { id:2,  date:'2026-03-29', label:'03/29', t1:'Mumbai Indians',              t2:'Kolkata Knight Riders'        },
-  { id:3,  date:'2026-03-30', label:'03/30', t1:'Rajasthan Royals',            t2:'Chennai Super Kings'          },
-  { id:4,  date:'2026-03-31', label:'03/31', t1:'Punjab Kings',                t2:'Gujarat Titans'               },
-  { id:5,  date:'2026-04-01', label:'04/01', t1:'Lucknow Super Giants',        t2:'Delhi Capitals'               },
-  { id:6,  date:'2026-04-02', label:'04/02', t1:'Kolkata Knight Riders',       t2:'Sunrisers Hyderabad'          },
-  { id:7,  date:'2026-04-03', label:'04/03', t1:'Chennai Super Kings',         t2:'Punjab Kings'                 },
-  { id:8,  date:'2026-04-04', label:'04/04', t1:'Delhi Capitals',              t2:'Mumbai Indians'               },
-  { id:9,  date:'2026-04-04', label:'04/04', t1:'Gujarat Titans',              t2:'Rajasthan Royals'             },
-  { id:10, date:'2026-04-05', label:'04/05', t1:'Sunrisers Hyderabad',         t2:'Lucknow Super Giants'         },
-  { id:11, date:'2026-04-05', label:'04/05', t1:'Royal Challengers Bengaluru', t2:'Chennai Super Kings'          },
-  { id:12, date:'2026-04-06', label:'04/06', t1:'Kolkata Knight Riders',       t2:'Punjab Kings'                 },
-  { id:13, date:'2026-04-07', label:'04/07', t1:'Rajasthan Royals',            t2:'Mumbai Indians'               },
-  { id:14, date:'2026-04-08', label:'04/08', t1:'Delhi Capitals',              t2:'Gujarat Titans'               },
-  { id:15, date:'2026-04-09', label:'04/09', t1:'Kolkata Knight Riders',       t2:'Lucknow Super Giants'         },
-  { id:16, date:'2026-04-10', label:'04/10', t1:'Rajasthan Royals',            t2:'Royal Challengers Bengaluru'  },
-  { id:17, date:'2026-04-11', label:'04/11', t1:'Punjab Kings',                t2:'Sunrisers Hyderabad'          },
-  { id:18, date:'2026-04-11', label:'04/11', t1:'Chennai Super Kings',         t2:'Delhi Capitals'               },
-  { id:19, date:'2026-04-12', label:'04/12', t1:'Lucknow Super Giants',        t2:'Gujarat Titans'               },
-  { id:20, date:'2026-04-12', label:'04/12', t1:'Mumbai Indians',              t2:'Royal Challengers Bengaluru'  },
-];
+const { FIXTURES } = require('./fixtures');
+const MATCHES = FIXTURES;
 
 const TEAMS = [
   'Royal Challengers Bengaluru','Mumbai Indians','Delhi Capitals','Chennai Super Kings',

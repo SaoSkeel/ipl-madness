@@ -27,11 +27,23 @@ const db = admin.firestore();
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function fetchSeriesMatches() {
-  const url = `${BASE}/series_info?apikey=${API_KEY}&id=${SERIES_ID}`;
-  const res = await fetch(url);
-  const json = await res.json();
-  if (json.status !== 'success') throw new Error(`API error: ${JSON.stringify(json)}`);
-  return json.data?.matchList || [];
+  const allMatches = [];
+  let offset = 0;
+  const pageSize = 25; // CricketData API default page size
+
+  while (true) {
+    const url = `${BASE}/series_info?apikey=${API_KEY}&id=${SERIES_ID}&offset=${offset}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.status !== 'success') throw new Error(`API error: ${JSON.stringify(json)}`);
+    const page = json.data?.matchList || [];
+    allMatches.push(...page);
+    // Stop when the page is smaller than pageSize (last page) or empty
+    if (page.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allMatches;
 }
 
 async function fetchMatchScore(matchId) {

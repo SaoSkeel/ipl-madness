@@ -22,7 +22,9 @@ No test runner or linter is configured.
 ### Core Files
 
 - **[server.js](server.js)** — Express server, all REST API routes, in-memory results cache (60s TTL), cron scheduler for auto-sync
-- **[src/matches.js](src/matches.js)** — Game logic: `MATCHES[]` (20 league games), `scoreBracket()`, `maxPossible()`, `rankLeaderboard()`, `TEAM_NAME_MAP` for normalizing API team names
+- **[src/fixtures.js](src/fixtures.js)** — All 70 league match fixtures (shared by server and browser)
+- **[src/matches.js](src/matches.js)** — Game logic: `MATCHES[]` (70 league games, imported from `src/fixtures.js`), `scoreBracket()`, `maxPossible()`, `rankLeaderboard()`, `TEAM_NAME_MAP` for normalizing API team names
+- **[public/fixtures.js](public/fixtures.js)** — Browser-compatible copy of fixtures (global `var FIXTURES`, no require/exports)
 - **[api/sync-results.js](api/sync-results.js)** — Fetches results from CricketData API, updates Firestore `ipl2026/results`, triggers `recomputeLeaderboards()`
 - **[public/index.html](public/index.html)** — Single-page frontend (bracket entry, group leaderboard, pick editing)
 - **[public/admin.html](public/admin.html)** — Admin panel (group management, manual result overrides, force sync)
@@ -49,7 +51,7 @@ Pick IDs are deterministic: `${groupId}__${name_slug}` — this is how edits avo
 
 | Prediction | Points |
 |---|---|
-| Correct league match winner (M1–M20) | 2 |
+| Correct league match winner (M1–M70) | 2 |
 | Correct semifinalist | 5 |
 | Correct champion | 10 |
 
@@ -73,7 +75,7 @@ Copy `.env.example` to `.env`:
 ## Key Implementation Notes
 
 - **Team name normalization**: CricketData API returns team names that differ from local names. `TEAM_NAME_MAP` in `src/matches.js` handles the mapping — update this if the API changes team name formats.
-- **GitHub Actions sync**: `.github/workflows/sync-results.yml` hits `/api/admin/sync` on a 30-min cron. The workflow URL currently has a known double-`https://` bug on line 16.
+- **GitHub Actions sync**: `.github/workflows/sync-results.yml` hits `/api/admin/sync` on a 30-min cron.
 - **Admin auth**: All `/api/admin/*` routes require `x-admin-password` header matching `ADMIN_PASSWORD` env var.
 - **Bracket locking**: Groups can be locked by admin to prevent new submissions. Edits to existing picks are still allowed via `PUT /api/picks`.
 - **All Firestore writes go through server** using Firebase Admin SDK — client-side rules deny all writes directly.
