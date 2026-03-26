@@ -64,14 +64,14 @@ async function recomputeGroup(groupId, results) {
       pts,
       maxPts: mx,
       champion: p.champion,
+      semis: p.semis || [],
       correctLeague: breakdown.league.filter(l => l.status === 'correct').length,
-      breakdown,
+      matchPicks: breakdown.league.map(l => ({ matchId: l.matchId, pick: l.pick, status: l.status })),
     };
   });
 
   const ranked = rankLeaderboard(entries);
-  // Store lean leaderboard (no full breakdown to save Firestore bytes)
-  const lean = ranked.map(({ breakdown: _bd, ...rest }) => rest);
+  const lean = ranked.map(({ uid:_uid, ...rest }) => rest);
   await db.collection('groups').doc(groupId).update({
     leaderboard: lean,
     memberCount: lean.length,
@@ -136,6 +136,22 @@ app.get('/api/results', async (req, res) => {
   catch (e) { res.status(500).json({ error:e.message }); }
 });
 
+// Public picks for a locked group — used by frontend to show everyone's picks after lock
+app.get('/api/group/:groupId/picks', async (req, res) => {
+  try {
+    const gid = req.params.groupId.toUpperCase();
+    const doc = await db.collection('groups').doc(gid).get();
+    if (!doc.exists) return res.status(404).json({ error:'Group not found' });
+    if (!doc.data().locked) return res.status(403).json({ error:'Group is not locked' });
+    const snap = await db.collection('groups').doc(gid).collection('picks').get();
+    const picks = snap.docs.map(d => {
+      const { pin:_pin, ...safe } = d.data();
+      return { name:safe.name, matches:safe.matches, semis:safe.semis, champion:safe.champion, finalRuns:safe.finalRuns };
+    });
+    res.json({ ok:true, picks });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
 // Group leaderboard — hides picks detail if group is not locked (fairness)
 app.get('/api/group/:groupId', async (req, res) => {
   try {
@@ -188,7 +204,7 @@ app.get('/api/picks/check', async (req, res) => {
 // Submit (POST=new, PUT=edit) — multiple brackets per group allowed (by different names)
 async function handlePicksSubmit(req, res, forceEdit) {
   try {
-    const { name, groupId, matches, semis, champion, pin } = req.body;
+    const { name, groupId, matches, semis, champion, pin, finalRuns } = req.body;
 
     if (!name?.trim())   return res.status(400).json({ error:'Name required' });
     if (!groupId?.trim()) return res.status(400).json({ error:'Group ID required' });
@@ -219,8 +235,10 @@ async function handlePicksSubmit(req, res, forceEdit) {
     }
 
     const now = new Date().toISOString();
+    const parsedFinalRuns = finalRuns != null ? parseInt(finalRuns) : null;
+    if (!parsedFinalRuns || parsedFinalRuns < 1) return res.status(400).json({ error:'Tiebreaker required: enter total runs in the Final' });
     const payload = {
-      name: name.trim(), groupId: gid, matches, semis, champion,
+      name: name.trim(), groupId: gid, matches, semis, champion, finalRuns: parsedFinalRuns,
       submittedAt: existDoc.exists ? existDoc.data().submittedAt : now,
       updatedAt: now,
     };
@@ -228,6 +246,8 @@ async function handlePicksSubmit(req, res, forceEdit) {
       payload.pin = crypto.createHash('sha256').update(pin.trim()).digest('hex');
     } else if (existDoc.exists && existDoc.data().pin) {
       payload.pin = existDoc.data().pin; // preserve existing PIN on edit
+    } else {
+      return res.status(400).json({ error:'PIN required' });
     }
     const isNew = !existDoc.exists;
     await picksRef.set(payload);
@@ -302,6 +322,16 @@ app.post('/api/admin/group/:groupId/lock', adminAuth, async (req, res) => {
     const locked = req.body.locked !== false;
     await db.collection('groups').doc(req.params.groupId.toUpperCase()).update({ locked });
     res.json({ ok:true, locked });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
+// Reset a player's PIN
+app.post('/api/admin/group/:groupId/picks/:pickId/reset-pin', adminAuth, async (req, res) => {
+  try {
+    const gid = req.params.groupId.toUpperCase();
+    const ref = db.collection('groups').doc(gid).collection('picks').doc(req.params.pickId);
+    await ref.update({ pin: admin.firestore.FieldValue.delete() });
+    res.json({ ok:true });
   } catch (e) { res.status(500).json({ error:e.message }); }
 });
 

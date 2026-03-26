@@ -157,10 +157,12 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 .detail-meta{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;}
 .dm{font-size:12px;color:var(--muted);}
 .dm strong{color:var(--text);}
-.dpicks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:7px;}
-.dp{background:var(--bg2);border-radius:7px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
-.dp-match{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;}
-.dp-team{font-size:12px;font-weight:600;}
+.dpicks{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:5px;}
+.dp{background:var(--bg2);border-radius:7px;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.dp-match{font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:2px;}
+.dp-vs{font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;font-family:'Space Mono',monospace;}
+.dp-t{color:var(--muted);font-weight:400;}
+.dp-t.picked{color:var(--gold);font-weight:700;}
 
 /* GROUP STRIP */
 .group-strip{background:linear-gradient(135deg,var(--bg3) 0%,#0A0E2A 100%);border:1px solid var(--gold-b);border-radius:16px;padding:26px 32px;margin-bottom:26px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
@@ -453,7 +455,7 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
   <div class="hero">
     <div class="eyebrow">BRACKET ENTRY · IPL 2026</div>
     <h1>ENTER <em>PICKS</em></h1>
-    <div class="hero-sub">70 match predictions + top 4 semifinalists + season champion.</div>
+    <div class="hero-sub">70 match predictions + top 4 semifinalists + season champion + tiebreaker.</div>
   </div>
 
   <div style="max-width:740px;">
@@ -469,9 +471,9 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
         <input class="finput" id="f-group" type="text" placeholder="e.g. CL2026" autocomplete="off" style="text-transform:uppercase;"></div>
     </div>
     <div style="margin-bottom:4px;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Security PIN <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+      <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Security PIN *</div>
       <input class="finput" id="f-pin" type="password" placeholder="Set a PIN to protect your bracket" autocomplete="new-password" style="max-width:320px;">
-      <div style="font-size:11px;color:var(--muted);margin-top:5px;">If set, this PIN is required when loading your bracket on a new device.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">Required. You'll need this PIN to load your bracket on a new device.</div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">One bracket per name per group. Multiple groups supported.</div>
 
@@ -493,6 +495,12 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 
     <div class="fst">SEASON CHAMPION<span class="fst-pts">10 pts · pick 1</span></div>
     <div class="cgrid" id="f-champ"></div>
+
+    <div class="fst">TIEBREAKER<span class="fst-pts">total runs in the Final</span></div>
+    <div style="margin-bottom:18px;">
+      <input class="finput" id="f-final-runs" type="number" min="0" max="999" placeholder="e.g. 320" autocomplete="off" style="max-width:200px;">
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">If there's a points tie at the end of the season, the player closest to the actual total runs scored in the Final wins.</div>
+    </div>
 
     <button class="sub-btn" id="sub-btn" onclick="submitPicks()">SUBMIT BRACKET →</button>
   </div>
@@ -521,6 +529,18 @@ const TD={
   'Gujarat Titans':'d-gt',
   'Kolkata Knight Riders':'d-kkr',
   'Lucknow Super Giants':'d-lsg'
+};
+const TI={
+  'Royal Challengers Bengaluru':'RCB',
+  'Mumbai Indians':'MI',
+  'Delhi Capitals':'DC',
+  'Chennai Super Kings':'CSK',
+  'Sunrisers Hyderabad':'SRH',
+  'Punjab Kings':'PBKS',
+  'Rajasthan Royals':'RR',
+  'Gujarat Titans':'GT',
+  'Kolkata Knight Riders':'KKR',
+  'Lucknow Super Giants':'LSG'
 };
 
 const MATCHES = _FX.map(f=>({
@@ -915,14 +935,14 @@ function renderLB(data){
 
     const detRow=document.createElement('div');
     detRow.className='lb-detail';
-    if(data.locked){
+    if(data.locked&&entry.matchPicks?.length){
       detRow.innerHTML=buildDetail(entry);
       row.addEventListener('click',()=>detRow.classList.toggle('open'));
-    } else if(isMe){
+    } else if(!data.locked&&isMe){
       const myB=S.brackets.find(b=>b.pickId===S.activePickId&&b.groupId===data.id)||S.brackets.find(b=>b.groupId===data.id&&b.picks.name.toLowerCase().trim()===myName);
       if(myB){
         const {breakdown}=score(myB.picks,S.results);
-        detRow.innerHTML=buildDetail({...entry,champion:myB.picks.champion,correctLeague:breakdown.league.filter(l=>l.status==='correct').length,breakdown});
+        detRow.innerHTML=buildDetail({...entry,champion:myB.picks.champion,correctLeague:breakdown.league.filter(l=>l.status==='correct').length,matchPicks:breakdown.league});
         row.addEventListener('click',()=>detRow.classList.toggle('open'));
       }
     }
@@ -935,16 +955,19 @@ function renderLB(data){
 }
 
 function buildDetail(entry){
-  const bd=entry.breakdown||{};
+  const picks=entry.matchPicks||[];
   return`<div class="detail-meta">
-    <div class="dm">🏆 Champion: <strong>${esc(entry.champion||'—')}</strong></div>
+    <div class="dm">🏆 Champion: <strong>${esc(TI[entry.champion]||entry.champion||'—')}</strong></div>
     <div class="dm" style="color:var(--green);">✅ ${entry.correctLeague||0}/${MATCHES.length} correct</div>
   </div>
-  <div style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:9px;">PICKS</div>
+  <div style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:9px;">MATCH PICKS</div>
   <div class="dpicks">
-    ${(bd.league||[]).map(l=>{const m=MATCHES.find(x=>x.id===l.matchId);
-      return`<div class="dp"><div><div class="dp-match">M${l.matchId} ${m?.date||''}</div>
-        <div class="dp-team"><span class="dot ${TD[l.pick]||''}"></span> ${esc(l.pick||'—')}</div></div>
+    ${picks.map(l=>{
+      const m=MATCHES.find(x=>x.id===l.matchId||String(x.id)===String(l.matchId));
+      const i1=TI[m?.t1]||m?.t1||'?';const i2=TI[m?.t2]||m?.t2||'?';
+      const p1=l.pick===m?.t1;const p2=l.pick===m?.t2;
+      return`<div class="dp"><div><div class="dp-match">M${l.matchId} · ${m?.date||''}</div>
+        <div class="dp-vs"><span class="dp-t${p1?' picked':''}">${i1}</span><span style="color:var(--muted);font-weight:400;font-size:9px;">vs</span><span class="dp-t${p2?' picked':''}">${i2}</span></div></div>
         <span class="chip ${l.status==='correct'?'chip-green':l.status==='incorrect'?'chip-red':'chip-gold'}" style="font-size:9px;padding:2px 5px;">
           ${l.status==='correct'?'+2':l.status==='incorrect'?'✗':'?'}</span></div>`;}).join('')}
   </div>`;
@@ -1074,9 +1097,12 @@ async function submitPicks(){
   if(semis.length!==4)return toast('Select exactly 4 semifinalists',true);
   const champ=document.querySelector('input[name=champion]:checked');
   if(!champ)return toast('Pick your Season Champion',true);
+  const finalRunsVal=parseInt(document.getElementById('f-final-runs').value);
+  if(!finalRunsVal||isNaN(finalRunsVal)||finalRunsVal<1)return toast('Enter your tiebreaker: total runs in the Final',true);
 
   const pinVal=document.getElementById('f-pin')?.value?.trim();
-  const payload={name,groupId:gid,matches,semis,champion:champ.value};
+  if(!S.editMode&&!pinVal)return toast('Set a PIN to protect your bracket',true);
+  const payload={name,groupId:gid,matches,semis,champion:champ.value,finalRuns:finalRunsVal};
   if(pinVal)payload.pin=pinVal;
   _isSubmitting=true;
   const btn=document.getElementById('sub-btn');
@@ -1135,6 +1161,7 @@ function startEdit(gid,name){
   document.querySelectorAll('input[name=semi]').forEach(c=>{c.checked=(b.picks.semis||[]).includes(c.value);c.disabled=false;});
   cntSemis();
   document.querySelectorAll('input[name=champion]').forEach(r=>r.checked=r.value===b.picks.champion);
+  const _fr=document.getElementById('f-final-runs');if(_fr&&b.picks.finalRuns)_fr.value=b.picks.finalRuns;
   updateFormProgress();
   goTab('enter');window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1146,6 +1173,7 @@ function cancelEdit(){
   document.getElementById('f-name').readOnly=false;document.getElementById('f-group').readOnly=false;
   document.getElementById('f-name').value='';document.getElementById('f-group').value='';
   const _fp=document.getElementById('f-pin');if(_fp)_fp.value='';
+  const _fr2=document.getElementById('f-final-runs');if(_fr2)_fr2.value='';
   document.querySelectorAll('input[name^=m],input[name=semi],input[name=champion]').forEach(el=>{el.checked=false;el.disabled=false;});
   document.querySelectorAll('.mrow').forEach(r=>r.classList.remove('picked'));
   document.getElementById('semi-cnt').textContent='0';
