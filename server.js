@@ -325,6 +325,16 @@ app.post('/api/admin/group/:groupId/lock', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error:e.message }); }
 });
 
+// Reset a player's PIN
+app.post('/api/admin/group/:groupId/picks/:pickId/reset-pin', adminAuth, async (req, res) => {
+  try {
+    const gid = req.params.groupId.toUpperCase();
+    const ref = db.collection('groups').doc(gid).collection('picks').doc(req.params.pickId);
+    await ref.update({ pin: admin.firestore.FieldValue.delete() });
+    res.json({ ok:true });
+  } catch (e) { res.status(500).json({ error:e.message }); }
+});
+
 // List picks in a group
 app.get('/api/admin/group/:groupId/picks', adminAuth, async (req, res) => {
   try {

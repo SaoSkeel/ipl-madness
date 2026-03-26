@@ -43,6 +43,7 @@ tbody tr:hover td{background:var(--bg3);}
 select.inp{min-width:160px;}
 .log{background:var(--bg3);border-radius:7px;padding:12px 14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);max-height:180px;overflow-y:auto;white-space:pre-wrap;line-height:1.7;}
 .member-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border-radius:7px;padding:8px 13px;gap:10px;margin-bottom:6px;}
+.pin-badge{font-size:10px;color:var(--gold);font-family:'Space Mono',monospace;}
 .member-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 #toast{position:fixed;bottom:22px;right:22px;background:var(--bg3);border:1px solid var(--gold);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;transform:translateY(60px);opacity:0;transition:all .3s;z-index:9999;}
 #toast.show{transform:translateY(0);opacity:1;}
@@ -254,13 +255,29 @@ async function loadMembers(gid,name){
         <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">${p.submittedAt?new Date(p.submittedAt).toLocaleDateString():''}</span>
         ${p.updatedAt&&p.updatedAt!==p.submittedAt?'<span style="font-size:10px;color:var(--blue);">edited</span>':''}
         <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">${esc(p.pickId)}</span>
-        ${p.pin?'<span style="font-size:10px;color:var(--gold);font-family:\'Space Mono\',monospace;">🔒 PIN set</span>':'<span style="font-size:10px;color:var(--muted);font-family:\'Space Mono\',monospace;">no PIN</span>'}
+        ${p.pin?'<span class="pin-badge">🔒 PIN set</span>':'<span style="font-size:10px;color:var(--muted);font-family:\'Space Mono\',monospace;">no PIN</span>'}
       </div>
-      <button class="bsm bred delete-pick-btn">🗑 Delete</button>`;
+      <div style="display:flex;gap:6px;">
+        ${p.pin?'<button class="bsm reset-pin-btn">Reset PIN</button>':''}
+        <button class="bsm bred delete-pick-btn">🗑 Delete</button>
+      </div>`;
       div.querySelector('.delete-pick-btn').addEventListener('click',()=>deletePick(gid,p.pickId,p.name));
+      div.querySelector('.reset-pin-btn')?.addEventListener('click',()=>resetPin(gid,p.pickId,p.name,div));
       list.appendChild(div);
     });
   }catch(e){document.getElementById('members-list').innerHTML=`<div style="color:var(--red);font-size:12px;">${e.message}</div>`;}
+}
+
+async function resetPin(gid,pickId,name,rowEl){
+  if(!confirm(`Reset PIN for "${name}"?\nThey can set a new one when they next edit their bracket.`))return;
+  const r=await fetch(`${API}/api/admin/group/${gid}/picks/${encodeURIComponent(pickId)}/reset-pin`,{method:'POST',headers:{'x-admin-password':PW}});
+  const data=await r.json();
+  if(data.ok){
+    toast(`PIN reset for ${name}`);
+    addLog(`[Reset PIN] ${name} in ${gid}`);
+    rowEl.querySelector('.pin-badge')?.remove();
+    rowEl.querySelector('.reset-pin-btn')?.remove();
+  }else toast(data.error,true);
 }
 
 async function deletePick(gid,pickId,name){
