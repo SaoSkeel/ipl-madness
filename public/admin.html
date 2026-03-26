@@ -254,6 +254,7 @@ async function loadMembers(gid,name){
         <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">${p.submittedAt?new Date(p.submittedAt).toLocaleDateString():''}</span>
         ${p.updatedAt&&p.updatedAt!==p.submittedAt?'<span style="font-size:10px;color:var(--blue);">edited</span>':''}
         <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">${esc(p.pickId)}</span>
+        ${p.pin?'<span style="font-size:10px;color:var(--gold);font-family:\'Space Mono\',monospace;">🔒 PIN set</span>':'<span style="font-size:10px;color:var(--muted);font-family:\'Space Mono\',monospace;">no PIN</span>'}
       </div>
       <button class="bsm bred delete-pick-btn">🗑 Delete</button>`;
       div.querySelector('.delete-pick-btn').addEventListener('click',()=>deletePick(gid,p.pickId,p.name));
