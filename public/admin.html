@@ -155,6 +155,7 @@ select.inp{min-width:160px;}
 </main>
 <div id="toast"><span id="t-icon">✅</span> <span id="t-msg"></span></div>
 
+<script src="fixtures.js"></script>
 <script>
 'use strict';
 const API=window.location.origin;
@@ -163,28 +164,8 @@ const actLog=[];
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 const TEAMS=['Royal Challengers Bengaluru','Mumbai Indians','Delhi Capitals','Chennai Super Kings','Sunrisers Hyderabad','Punjab Kings','Rajasthan Royals','Gujarat Titans','Kolkata Knight Riders','Lucknow Super Giants'];
-const MATCHES=[
-  {id:1,date:'03/28',t1:'Royal Challengers Bengaluru',t2:'Sunrisers Hyderabad'},
-  {id:2,date:'03/29',t1:'Mumbai Indians',t2:'Kolkata Knight Riders'},
-  {id:3,date:'03/30',t1:'Rajasthan Royals',t2:'Chennai Super Kings'},
-  {id:4,date:'03/31',t1:'Punjab Kings',t2:'Gujarat Titans'},
-  {id:5,date:'04/01',t1:'Lucknow Super Giants',t2:'Delhi Capitals'},
-  {id:6,date:'04/02',t1:'Kolkata Knight Riders',t2:'Sunrisers Hyderabad'},
-  {id:7,date:'04/03',t1:'Chennai Super Kings',t2:'Punjab Kings'},
-  {id:8,date:'04/04',t1:'Delhi Capitals',t2:'Mumbai Indians'},
-  {id:9,date:'04/04',t1:'Gujarat Titans',t2:'Rajasthan Royals'},
-  {id:10,date:'04/05',t1:'Sunrisers Hyderabad',t2:'Lucknow Super Giants'},
-  {id:11,date:'04/05',t1:'Royal Challengers Bengaluru',t2:'Chennai Super Kings'},
-  {id:12,date:'04/06',t1:'Kolkata Knight Riders',t2:'Punjab Kings'},
-  {id:13,date:'04/07',t1:'Rajasthan Royals',t2:'Mumbai Indians'},
-  {id:14,date:'04/08',t1:'Delhi Capitals',t2:'Gujarat Titans'},
-  {id:15,date:'04/09',t1:'Kolkata Knight Riders',t2:'Lucknow Super Giants'},
-  {id:16,date:'04/10',t1:'Rajasthan Royals',t2:'Royal Challengers Bengaluru'},
-  {id:17,date:'04/11',t1:'Punjab Kings',t2:'Sunrisers Hyderabad'},
-  {id:18,date:'04/11',t1:'Chennai Super Kings',t2:'Delhi Capitals'},
-  {id:19,date:'04/12',t1:'Lucknow Super Giants',t2:'Gujarat Titans'},
-  {id:20,date:'04/12',t1:'Mumbai Indians',t2:'Royal Challengers Bengaluru'},
-];
+// Derived from fixtures.js (loaded via <script src="fixtures.js">)
+const MATCHES=(typeof FIXTURES!=='undefined'?FIXTURES:[]).map(f=>({id:f.id,date:f.label,t1:f.t1,t2:f.t2}));
 
 async function unlock(){
   PW=document.getElementById('pw').value;
@@ -233,7 +214,7 @@ function renderDash(data){
   const groups=data.groups||[];const results=data.results||{};
   document.getElementById('d-groups').textContent=groups.length;
   document.getElementById('d-entries').textContent=groups.reduce((s,g)=>s+(g.memberCount||0),0);
-  document.getElementById('d-results').textContent=Object.keys(results.matches||{}).length+'/20';
+  document.getElementById('d-results').textContent=Object.keys(results.matches||{}).length+'/'+MATCHES.length;
   if(results.lastSynced)document.getElementById('sync-info').textContent='Last sync: '+new Date(results.lastSynced).toLocaleString();
   document.getElementById('results-log').textContent=JSON.stringify(results,null,2);
 

@@ -12,6 +12,7 @@ const rateLimit  = require('express-rate-limit');
 const cors       = require('cors');
 const cron       = require('node-cron');
 const path       = require('path');
+const crypto     = require('crypto');
 const admin      = require('firebase-admin');
 
 const { MATCHES, scoreBracket, maxPossible, rankLeaderboard } = require('./src/matches');
@@ -103,7 +104,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Rate limiting (picks submission only) ───────────────────────────────────
@@ -114,8 +115,12 @@ const picksLimiter = rateLimit({
 });
 
 function adminAuth(req, res, next) {
-  const pw = req.headers['x-admin-password'] || req.body?.adminPassword;
-  if (pw !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error:'Unauthorized' });
+  const pw       = req.headers['x-admin-password'] || req.body?.adminPassword || '';
+  const expected = process.env.ADMIN_PASSWORD;
+  // Use constant-time comparison to prevent timing attacks
+  const valid = pw.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(pw), Buffer.from(expected));
+  if (!valid) return res.status(401).json({ error:'Unauthorized' });
   next();
 }
 
@@ -178,8 +183,15 @@ async function handlePicksSubmit(req, res, forceEdit) {
     if (!groupId?.trim()) return res.status(400).json({ error:'Group ID required' });
     if (!matches || Object.keys(matches).length !== MATCHES.length)
       return res.status(400).json({ error:`Pick all ${MATCHES.length} matches` });
+    const validMatchIds = new Set(MATCHES.map(m => String(m.id)));
+    const validTeams    = new Set(MATCHES.flatMap(m => [m.t1, m.t2]));
+    for (const [id, winner] of Object.entries(matches)) {
+      if (!validMatchIds.has(id)) return res.status(400).json({ error:`Invalid match id: ${id}` });
+      if (!validTeams.has(winner)) return res.status(400).json({ error:`Invalid winner for match ${id}: ${winner}` });
+    }
     if (!semis || semis.length !== 4) return res.status(400).json({ error:'Pick exactly 4 semifinalists' });
-    if (!champion) return res.status(400).json({ error:'Pick a champion' });
+    if (semis.some(t => !validTeams.has(t))) return res.status(400).json({ error:'Invalid semifinalist team name' });
+    if (!champion || !validTeams.has(champion)) return res.status(400).json({ error:'Invalid champion' });
 
     const gid      = groupId.trim().toUpperCase();
     const groupRef = db.collection('groups').doc(gid);

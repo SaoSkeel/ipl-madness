@@ -100,6 +100,20 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 .pill-incorrect{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,59,92,.3);text-decoration:line-through;opacity:.8;}
 .pts-cell{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;text-align:right;}
 
+/* WEEK GROUP — collapsible sections in My Bracket table */
+.week-group{margin-bottom:16px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);}
+.week-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--bg3);cursor:pointer;user-select:none;transition:background .15s;}
+.week-hd:hover{background:var(--bg4);}
+.week-hd-left{display:flex;align-items:center;gap:10px;}
+.week-label{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;}
+.week-dates{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;}
+.week-stats{display:flex;align-items:center;gap:8px;}
+.week-correct{font-family:'Space Mono',monospace;font-size:10px;color:var(--green);}
+.week-chev{color:var(--muted);font-size:13px;transition:transform .25s;flex-shrink:0;}
+.week-group.open .week-chev{transform:rotate(180deg);}
+.week-body{display:none;}
+.week-group.open .week-body{display:block;}
+
 /* PLAYOFF */
 .playoff-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .pi{background:var(--bg3);border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
@@ -137,9 +151,7 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 .lb-max{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);}
 .lb-champ{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted);}
 .lb-champ.hit{color:var(--gold);}
-/* Hide picks pre-lock */
 .lb-row.hidden-picks .lb-champ{color:transparent;user-select:none;filter:blur(4px);}
-/* Detail row */
 .lb-detail{display:none;background:var(--bg3);padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.04);}
 .lb-detail.open{display:block;}
 .detail-meta{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;}
@@ -181,15 +193,34 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 .ob-card.open .ob-body{display:block;}
 .ob-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
 
-/* FORM */
+/* ───── FORM ───── */
 .fst{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2.5px;color:var(--gold);border-bottom:1px solid var(--gold-b);padding-bottom:8px;margin:28px 0 14px;display:flex;align-items:center;justify-content:space-between;}
 .fst-pts{font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;letter-spacing:0;}
 .finput{background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;padding:12px 16px;outline:none;transition:border-color .2s;width:100%;max-width:340px;}
 .finput:focus{border-color:var(--gold);}
+
+/* WEEK ACCORDION — Enter Picks form */
+.fw-group{border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;margin-bottom:10px;}
+.fw-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg3);cursor:pointer;user-select:none;transition:background .15s;gap:10px;}
+.fw-hd:hover{background:var(--bg4);}
+.fw-hd-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+.fw-label{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;white-space:nowrap;}
+.fw-dates{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+.fw-progress{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.fw-prog-text{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);}
+.fw-prog-text.complete{color:var(--green);}
+.fw-chev{color:var(--muted);font-size:13px;transition:transform .25s;flex-shrink:0;}
+.fw-group.open .fw-chev{transform:rotate(180deg);}
+.fw-body{display:none;padding:10px;background:var(--bg2);display:flex;flex-direction:column;gap:8px;}
+.fw-group:not(.open) .fw-body{display:none;}
+.fw-group.open .fw-body{display:flex;}
+
 .mrow{background:var(--bg3);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:14px;transition:border-color .2s;}
 .mrow:hover{border-color:var(--gold-b);}
+.mrow.picked{border-color:rgba(245,166,35,.2);}
 .mr-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);min-width:48px;}
 .mr-id{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:7px;letter-spacing:1px;}
+.mr-venue{font-size:10px;color:var(--muted);margin-top:4px;font-style:italic;}
 .rg{display:flex;flex-direction:column;gap:7px;flex:1;}
 .rl{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;font-weight:500;transition:color .15s;}
 .rl:hover{color:var(--gold);}
@@ -198,6 +229,7 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 .rl input:checked~.rc{border-color:var(--gold);background:var(--gold);}
 .rl input:checked~.rc::after{content:'';width:5px;height:5px;background:#000;border-radius:50%;}
 .rl input:checked~.rl-name{color:var(--gold);font-weight:700;}
+
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px;}
 .cl{display:flex;align-items:center;gap:9px;cursor:pointer;background:var(--bg3);border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:10px 13px;font-size:13px;font-weight:500;transition:all .2s;}
 .cl:hover{border-color:var(--gold-b);color:var(--gold);}
@@ -235,6 +267,14 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 .rule-title{font-weight:700;margin-bottom:5px;font-size:13px;}
 .rule-body{font-size:12px;color:var(--muted);line-height:1.7;}
 
+/* PROGRESS BAR — form completion */
+.form-progress{background:var(--bg3);border:1px solid var(--gold-b);border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.fp-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1.5px;color:var(--gold);white-space:nowrap;}
+.fp-bar-wrap{flex:1;min-width:100px;background:var(--bg);height:6px;border-radius:6px;overflow:hidden;}
+.fp-bar{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--gold),var(--gold-dk));transition:width .4s ease;}
+.fp-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;}
+.fp-count em{color:var(--text);}
+
 /* TOAST */
 #toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--bg4);border:1px solid var(--gold);border-radius:12px;padding:12px 20px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:9px;transform:translateY(70px);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 40px rgba(0,0,0,.5);}
 #toast.show{transform:translateY(0);opacity:1;pointer-events:auto;}
@@ -253,6 +293,7 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
   .nb span{display:none;}
   .hi{padding:0 14px;}
   main{padding:18px 14px;}
+  .fw-dates{display:none;}
 }
 </style>
 </head>
@@ -327,16 +368,13 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
     <div class="sh">
       <div class="sh-title">LEAGUE PICKS</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <span class="chip chip-gold">20 MATCHES · 2 PTS EACH</span>
+        <span class="chip chip-gold" id="match-count-chip">70 MATCHES · 2 PTS EACH</span>
         <button id="my-edit-btn" class="edit-btn" onclick="editActive()" style="display:none;">✏️ Edit</button>
       </div>
     </div>
-    <div class="card" style="padding:0;overflow:hidden;">
-      <table class="mtable">
-        <thead><tr><th>Date</th><th>Match</th><th>Your Pick</th><th>Result</th><th style="text-align:right">Pts</th></tr></thead>
-        <tbody id="my-tbody"></tbody>
-      </table>
-    </div>
+
+    <!-- Weekly grouped match results (My Bracket) -->
+    <div id="my-weeks"></div>
 
     <!-- Other brackets -->
     <div id="other-wrap" style="display:none;margin-top:32px;">
@@ -349,13 +387,11 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 <!-- ═══ GROUP ═══ -->
 <div id="tab-group" class="tab">
 
-  <!-- Group code lookup (always visible, works without a saved bracket) -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
     <input class="finput" id="gc-input" type="text" placeholder="Group Code (e.g. CL2026)" style="text-transform:uppercase;width:220px;max-width:100%;" onkeydown="if(event.key==='Enter')viewGroup()">
     <button class="edit-btn" onclick="viewGroup()">View Group →</button>
   </div>
 
-  <!-- Load bracket on new device -->
   <div id="load-bracket-bar" style="display:none;background:var(--bg3);border:1px solid var(--gold-b);border-radius:10px;padding:13px 18px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap;">
     <span style="font-size:12px;color:var(--muted);flex:1;">On a new device? Load your existing bracket by name.</span>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -416,7 +452,7 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
   <div class="hero">
     <div class="eyebrow">BRACKET ENTRY · IPL 2026</div>
     <h1>ENTER <em>PICKS</em></h1>
-    <div class="hero-sub">20 match predictions + top 4 semifinalists + season champion.</div>
+    <div class="hero-sub">70 match predictions + top 4 semifinalists + season champion.</div>
   </div>
 
   <div style="max-width:740px;">
@@ -431,10 +467,19 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
       <div><div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Group Code *</div>
         <input class="finput" id="f-group" type="text" placeholder="e.g. CL2026" autocomplete="off" style="text-transform:uppercase;"></div>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">One bracket per name per group. Multiple groups supported.</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">One bracket per name per group. Multiple groups supported.</div>
 
-    <div class="fst">LEAGUE STAGE<span class="fst-pts">2 pts each</span></div>
-    <div style="display:flex;flex-direction:column;gap:9px;" id="f-matches"></div>
+    <div class="fst">LEAGUE STAGE<span class="fst-pts">2 pts each · 70 matches</span></div>
+
+    <!-- Progress bar -->
+    <div class="form-progress">
+      <div class="fp-label">PICKS MADE</div>
+      <div class="fp-bar-wrap"><div class="fp-bar" id="fp-bar" style="width:0%"></div></div>
+      <div class="fp-count"><em id="fp-done">0</em> / <em id="fp-total">70</em></div>
+    </div>
+
+    <!-- Week-grouped match accordion -->
+    <div id="f-matches"></div>
 
     <div class="fst">TOP 4 SEMIFINALISTS<span class="fst-pts">5 pts each · pick 4</span></div>
     <div class="cgrid" id="f-semis"></div>
@@ -450,40 +495,82 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
 </main>
 <div id="toast"><span id="t-icon">✅</span> <span id="t-msg"></span></div>
 
+<script src="fixtures.js"></script>
 <script>
 'use strict';
 const API = window.location.origin;
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-// ─── DATA ─────────────────────────────────────────────────────────────────────
-const MATCHES=[
-  {id:1,date:'03/28',t1:'Royal Challengers Bengaluru',t2:'Sunrisers Hyderabad',c1:'d-rcb',c2:'d-srh'},
-  {id:2,date:'03/29',t1:'Mumbai Indians',t2:'Kolkata Knight Riders',c1:'d-mi',c2:'d-kkr'},
-  {id:3,date:'03/30',t1:'Rajasthan Royals',t2:'Chennai Super Kings',c1:'d-rr',c2:'d-csk'},
-  {id:4,date:'03/31',t1:'Punjab Kings',t2:'Gujarat Titans',c1:'d-pbks',c2:'d-gt'},
-  {id:5,date:'04/01',t1:'Lucknow Super Giants',t2:'Delhi Capitals',c1:'d-lsg',c2:'d-dc'},
-  {id:6,date:'04/02',t1:'Kolkata Knight Riders',t2:'Sunrisers Hyderabad',c1:'d-kkr',c2:'d-srh'},
-  {id:7,date:'04/03',t1:'Chennai Super Kings',t2:'Punjab Kings',c1:'d-csk',c2:'d-pbks'},
-  {id:8,date:'04/04',t1:'Delhi Capitals',t2:'Mumbai Indians',c1:'d-dc',c2:'d-mi'},
-  {id:9,date:'04/04',t1:'Gujarat Titans',t2:'Rajasthan Royals',c1:'d-gt',c2:'d-rr'},
-  {id:10,date:'04/05',t1:'Sunrisers Hyderabad',t2:'Lucknow Super Giants',c1:'d-srh',c2:'d-lsg'},
-  {id:11,date:'04/05',t1:'Royal Challengers Bengaluru',t2:'Chennai Super Kings',c1:'d-rcb',c2:'d-csk'},
-  {id:12,date:'04/06',t1:'Kolkata Knight Riders',t2:'Punjab Kings',c1:'d-kkr',c2:'d-pbks'},
-  {id:13,date:'04/07',t1:'Rajasthan Royals',t2:'Mumbai Indians',c1:'d-rr',c2:'d-mi'},
-  {id:14,date:'04/08',t1:'Delhi Capitals',t2:'Gujarat Titans',c1:'d-dc',c2:'d-gt'},
-  {id:15,date:'04/09',t1:'Kolkata Knight Riders',t2:'Lucknow Super Giants',c1:'d-kkr',c2:'d-lsg'},
-  {id:16,date:'04/10',t1:'Rajasthan Royals',t2:'Royal Challengers Bengaluru',c1:'d-rr',c2:'d-rcb'},
-  {id:17,date:'04/11',t1:'Punjab Kings',t2:'Sunrisers Hyderabad',c1:'d-pbks',c2:'d-srh'},
-  {id:18,date:'04/11',t1:'Chennai Super Kings',t2:'Delhi Capitals',c1:'d-csk',c2:'d-dc'},
-  {id:19,date:'04/12',t1:'Lucknow Super Giants',t2:'Gujarat Titans',c1:'d-lsg',c2:'d-gt'},
-  {id:20,date:'04/12',t1:'Mumbai Indians',t2:'Royal Challengers Bengaluru',c1:'d-mi',c2:'d-rcb'},
-];
+// ─── DATA FROM fixtures.js (loaded via <script src="fixtures.js">) ───────────
+const _FX = (typeof FIXTURES !== 'undefined' ? FIXTURES : []);
+
+const TD={
+  'Royal Challengers Bengaluru':'d-rcb',
+  'Mumbai Indians':'d-mi',
+  'Delhi Capitals':'d-dc',
+  'Chennai Super Kings':'d-csk',
+  'Sunrisers Hyderabad':'d-srh',
+  'Punjab Kings':'d-pbks',
+  'Rajasthan Royals':'d-rr',
+  'Gujarat Titans':'d-gt',
+  'Kolkata Knight Riders':'d-kkr',
+  'Lucknow Super Giants':'d-lsg'
+};
+
+const MATCHES = _FX.map(f=>({
+  id: f.id,
+  date: f.label,         // MM/DD format for display
+  fullDate: f.date,      // YYYY-MM-DD for week grouping
+  t1: f.t1,
+  t2: f.t2,
+  venue: f.venue,
+  c1: TD[f.t1]||'',
+  c2: TD[f.t2]||''
+}));
+
 const TEAMS=['Royal Challengers Bengaluru','Mumbai Indians','Delhi Capitals','Chennai Super Kings','Sunrisers Hyderabad','Punjab Kings','Rajasthan Royals','Gujarat Titans','Kolkata Knight Riders','Lucknow Super Giants'];
-const TD={'Royal Challengers Bengaluru':'d-rcb','Mumbai Indians':'d-mi','Delhi Capitals':'d-dc','Chennai Super Kings':'d-csk','Sunrisers Hyderabad':'d-srh','Punjab Kings':'d-pbks','Rajasthan Royals':'d-rr','Gujarat Titans':'d-gt','Kolkata Knight Riders':'d-kkr','Lucknow Super Giants':'d-lsg'};
 const PTS={match:2,semi:5,winner:10};
+
+// ─── WEEK GROUPING ────────────────────────────────────────────────────────────
+// Returns array of { weekLabel, dateRange, matches[] }
+function groupByWeek(matches) {
+  const weeks = [];
+  const getMonday = d => {
+    const dt = new Date(d + 'T00:00:00');
+    const day = dt.getDay(); // 0=Sun
+    const diff = (day === 0 ? -6 : 1 - day);
+    const mon = new Date(dt);
+    mon.setDate(dt.getDate() + diff);
+    return mon;
+  };
+  const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+  const map = new Map();
+  matches.forEach(m => {
+    const mon = getMonday(m.fullDate);
+    const key = mon.toISOString().slice(0,10);
+    if(!map.has(key)) map.set(key, { monday: mon, matches: [] });
+    map.get(key).matches.push(m);
+  });
+
+  let wn = 1;
+  for(const [,val] of map) {
+    const sun = new Date(val.monday); sun.setDate(sun.getDate() + 6);
+    weeks.push({
+      weekLabel: `WEEK ${wn}`,
+      dateRange: `${fmt(val.monday)} – ${fmt(sun)}`,
+      matches: val.matches
+    });
+    wn++;
+  }
+  return weeks;
+}
+
+const WEEKS = groupByWeek(MATCHES);
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let S={
-  brackets:[], // [{groupId,pickId,picks,locked}]
+  brackets:[],
   activePickId:null,
   results:{},
   editMode:false,
@@ -505,7 +592,6 @@ function showTab(name,btn){
   if(btn)btn.classList.add('active');
   if(name==='my')renderMy();
   if(name==='group'){
-    // Keep gc-input in sync with current active bracket's group
     const ab=S.brackets.find(b=>b.pickId===S.activePickId)||S.brackets[0];
     if(ab&&!_viewingGroupId){_viewingGroupId=ab.groupId;}
     const gc=document.getElementById('gc-input');
@@ -520,10 +606,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
   buildForm();
   S.brackets=ls.get('ipl_brackets')||[];
   S.activePickId=ls.get('ipl_activePickId');
-  // Migrate from old groupId-based key
   if(!S.activePickId){const oldGid=ls.get('ipl_activeGid');if(oldGid){const b=S.brackets.find(x=>x.groupId===oldGid);if(b)S.activePickId=b.pickId;}}
   if(!S.activePickId&&S.brackets.length) S.activePickId=S.brackets[0].pickId;
-  // Pre-seed viewing group from active bracket
   const _initB=S.brackets.find(b=>b.pickId===S.activePickId)||S.brackets[0];
   if(_initB)_viewingGroupId=_initB.groupId;
   await loadResults();
@@ -589,10 +673,8 @@ function renderMy(){
   document.getElementById('my-content').style.display=all.length?'block':'none';
   if(!all.length)return;
 
-  // Ensure active bracket exists
   if(!S.activePickId||!all.find(b=>b.pickId===S.activePickId)) S.activePickId=all[0].pickId;
 
-  // Switcher pills
   const sw=document.getElementById('switcher-wrap');
   const pills=document.getElementById('switcher-pills');
   if(all.length>1){
@@ -601,7 +683,7 @@ function renderMy(){
       const sc=score(b.picks,S.results);
       const p=document.createElement('button');
       p.className='bpill'+(b.pickId===S.activePickId?' active':'');
-      p.innerHTML=`<span class="bpill-grp">${b.groupId}</span>${b.picks.name}<span class="bpill-pts">${sc.pts}pts</span>`;
+      p.innerHTML=`<span class="bpill-grp">${esc(b.groupId)}</span>${esc(b.picks.name)}<span class="bpill-pts">${sc.pts}pts</span>`;
       p.onclick=()=>{S.activePickId=b.pickId;ls.set('ipl_activePickId',b.pickId);renderMy();if(document.getElementById('tab-group').classList.contains('active'))loadGroup();};
       pills.appendChild(p);
     });
@@ -616,12 +698,9 @@ function renderMy(){
   document.getElementById('my-pts').textContent=pts;
   document.getElementById('my-max').textContent=mx;
   document.getElementById('my-bar').style.width=pct+'%';
-
-  // Group rank from cached leaderboard (if available in local group data)
   document.getElementById('my-group-label').textContent='Group '+active.groupId;
-  document.getElementById('my-rank').textContent='—'; // will refresh when group loads
+  document.getElementById('my-rank').textContent='—';
 
-  // Edit button
   const eb=document.getElementById('my-edit-btn');
   eb.style.display=active.locked?'none':'inline-flex';
 
@@ -639,19 +718,8 @@ function renderMy(){
   document.getElementById('champ-status').textContent=cbd.status==='correct'?'✓ 10 PTS':cbd.status==='incorrect'?'✗ 0':'10 PTS';
   document.getElementById('champ-status').className='chip '+(cbd.status==='correct'?'chip-green':cbd.status==='incorrect'?'chip-red':'chip-gold');
 
-  // Match table
-  const tbody=document.getElementById('my-tbody');tbody.innerHTML='';
-  MATCHES.forEach(m=>{
-    const bd2=breakdown.league.find(l=>l.matchId===m.id)||{status:'pending',pick:picks.matches?.[m.id],pts:0};
-    const st=bd2.status;const pick=bd2.pick||'—';const ptsStr=st==='correct'?'+2':st==='incorrect'?'0':'—';
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="mdate">${m.date}</td>
-      <td><div class="mteams"><span class="dot ${m.c1}"></span>${m.t1}<span class="vs">vs</span><span class="dot ${m.c2}"></span>${m.t2}</div></td>
-      <td><span class="pill pill-${st}"><span class="dot ${TD[pick]||''}"></span>${pick}</span></td>
-      <td style="font-size:12px;color:var(--muted);">${bd2.result||'Pending'}</td>
-      <td class="pts-cell" style="color:${st==='correct'?'var(--green)':st==='incorrect'?'var(--red)':'var(--muted)'};">${ptsStr}</td>`;
-    tbody.appendChild(tr);
-  });
+  // Render weekly accordion for match results
+  renderMyWeeks(picks, breakdown);
 
   // Other brackets
   const others=all.filter(b=>b.pickId!==S.activePickId);
@@ -659,52 +727,81 @@ function renderMy(){
   const ol=document.getElementById('other-list');
   if(others.length){
     ow.style.display='block';
-    document.getElementById('other-count').textContent=others.length+' more';
+    document.getElementById('other-count').textContent=`${others.length} MORE`;
     ol.innerHTML='';
     others.forEach(b=>{
-      const sc=score(b.picks,S.results);const mx2=maxPts(b.picks,S.results);
-      const pct2=mx2>0?Math.round(sc.pts/mx2*100):0;
-      const card=document.createElement('div');card.className='ob-card';
-      card.innerHTML=`<div class="ob-hd" onclick="this.closest('.ob-card').classList.toggle('open')">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div class="ob-grp-tag">${b.groupId}</div>
-          <div><div style="font-weight:700;font-size:13px;">${b.picks.name}</div>
-          <div class="ob-meta">${b.locked?'🔒 Locked':'🔓 Open'}</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div><div class="ob-pts-val">${sc.pts}</div><div class="ob-pts-max">/ ${mx2} max</div></div>
-          <span class="ob-chev">▼</span>
-        </div></div>
+      const sc=score(b.picks,S.results);
+      const card=document.createElement('div');
+      card.className='ob-card';
+      card.innerHTML=`<div class="ob-hd" onclick="this.parentElement.classList.toggle('open')">
+        <div><div style="display:flex;align-items:center;gap:8px;"><span class="ob-grp-tag">${esc(b.groupId)}</span><span style="font-weight:700;">${esc(b.picks.name)}</span></div>
+          <div class="ob-meta">Submitted ${b.picks.submittedAt?new Date(b.picks.submittedAt).toLocaleDateString():''}</div></div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="text-align:right;"><div class="ob-pts-val">${sc.pts}</div><div class="ob-pts-max">max ${maxPts(b.picks,S.results)}</div></div>
+          <span class="ob-chev">▾</span></div></div>
       <div class="ob-body">
-        <div style="margin-bottom:12px;">
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;"><span>${sc.pts} pts</span><span>${pct2}% of max</span></div>
-          <div class="bar"><div class="bar-fill" style="width:${pct2}%"></div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:7px;margin-bottom:10px;">
-          ${(b.picks.semis||[]).map((t,i)=>{
-            const bdi=(score(b.picks,S.results).breakdown.semis||[])[i]||{status:'pending'};
-            return `<div class="pi"><div><div class="pi-sub">SF #${i+1}</div><div class="pi-name" style="font-size:12px;"><span class="dot ${TD[t]||''}"></span>${t}</div></div>
-              <span class="chip ${bdi.status==='correct'?'chip-green':bdi.status==='incorrect'?'chip-red':'chip-gold'}" style="font-size:9px;">${bdi.status==='correct'?'✓':bdi.status==='incorrect'?'✗':'?'}</span></div>`;
-          }).join('')}
-          <div class="pi" style="border:1px solid var(--gold-b);"><div><div class="pi-sub">🏆 CHAMP</div><div class="pi-name" style="font-size:12px;"><span class="dot ${TD[b.picks.champion]||''}"></span>${b.picks.champion||'—'}</div></div>
-            ${S.results.champion?`<span class="chip ${b.picks.champion===S.results.champion?'chip-green':'chip-red'}" style="font-size:9px;">${b.picks.champion===S.results.champion?'✓':'✗'}</span>`:`<span class="chip chip-gold" style="font-size:9px;">10</span>`}
-          </div>
-        </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:5px;margin-bottom:8px;">
           ${MATCHES.map(m=>{const pick=b.picks.matches?.[m.id];const res=S.results.matches?.[m.id];let st='pending';if(res)st=pick===res?'correct':'incorrect';
             return `<div style="background:var(--bg3);border-radius:6px;padding:6px 10px;display:flex;align-items:center;gap:5px;">
               <span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;min-width:24px;">M${m.id}</span>
-              <span style="font-size:11px;font-weight:600;flex:1;"><span class="dot ${TD[pick]||''}"></span> ${pick||'—'}</span>
+              <span style="font-size:11px;font-weight:600;flex:1;"><span class="dot ${TD[pick]||''}"></span> ${esc(pick||'—')}</span>
               <span class="chip ${st==='correct'?'chip-green':st==='incorrect'?'chip-red':'chip-gold'}" style="font-size:9px;padding:2px 5px;">${st==='correct'?'+2':st==='incorrect'?'✗':'?'}</span></div>`;}).join('')}
         </div>
         <div class="ob-actions">
-          <button class="bpill active" onclick="S.activePickId='${b.pickId}';ls.set('ipl_activePickId','${b.pickId}');renderMy();window.scrollTo({top:0,behavior:'smooth'});">👁 View Active</button>
-          ${!b.locked?`<button class="edit-btn" onclick="startEdit('${b.groupId}','${b.picks.name}')">✏️ Edit</button>`:`<div class="locked-note">🔒 Locked</div>`}
+          <button class="bpill active js-view-btn">👁 View Active</button>
+          ${!b.locked?`<button class="edit-btn js-edit-btn">✏️ Edit</button>`:`<div class="locked-note">🔒 Locked</div>`}
         </div>
       </div>`;
+      card.querySelector('.js-view-btn').addEventListener('click',()=>{S.activePickId=b.pickId;ls.set('ipl_activePickId',b.pickId);renderMy();window.scrollTo({top:0,behavior:'smooth'});});
+      card.querySelector('.js-edit-btn')?.addEventListener('click',()=>startEdit(b.groupId,b.picks.name));
       ol.appendChild(card);
     });
   }else ow.style.display='none';
+}
+
+function renderMyWeeks(picks, breakdown){
+  const container = document.getElementById('my-weeks');
+  container.innerHTML = '';
+
+  WEEKS.forEach((wk, wi) => {
+    const wMatches = wk.matches;
+    const wLeague = wMatches.map(m => breakdown.league.find(l=>l.matchId===m.id)||{matchId:m.id,status:'pending',pick:picks.matches?.[m.id],pts:0});
+    const correct = wLeague.filter(l=>l.status==='correct').length;
+    const resolved = wLeague.filter(l=>l.status!=='pending').length;
+    const hasAny = wLeague.some(l=>l.status!=='pending');
+
+    const wg = document.createElement('div');
+    wg.className = 'week-group' + (wi===0?' open':''); // first week open by default
+    wg.innerHTML = `
+      <div class="week-hd" onclick="this.parentElement.classList.toggle('open')">
+        <div class="week-hd-left">
+          <span class="week-label">${wk.weekLabel}</span>
+          <span class="week-dates">${wk.dateRange}</span>
+        </div>
+        <div class="week-stats">
+          ${hasAny?`<span class="week-correct">${correct}/${resolved} correct</span>`:''}
+          <span class="chip chip-gold" style="font-size:9px;padding:2px 8px;">${wMatches.length} matches</span>
+          <span class="week-chev">▾</span>
+        </div>
+      </div>
+      <div class="week-body">
+        <table class="mtable">
+          <thead><tr><th>Date</th><th>Match</th><th>Your Pick</th><th>Result</th><th style="text-align:right">Pts</th></tr></thead>
+          <tbody>${wMatches.map(m=>{
+            const bd2 = wLeague.find(l=>l.matchId===m.id)||{status:'pending',pick:picks.matches?.[m.id],pts:0};
+            const st=bd2.status;const pick=bd2.pick||'—';const ptsStr=st==='correct'?'+2':st==='incorrect'?'0':'—';
+            return `<tr>
+              <td class="mdate">${m.date}</td>
+              <td><div class="mteams"><span class="dot ${m.c1}"></span>${m.t1}<span class="vs">vs</span><span class="dot ${m.c2}"></span>${m.t2}</div></td>
+              <td><span class="pill pill-${st}"><span class="dot ${TD[pick]||''}"></span>${pick}</span></td>
+              <td style="font-size:12px;color:var(--muted);">${bd2.result||'Pending'}</td>
+              <td class="pts-cell" style="color:${st==='correct'?'var(--green)':st==='incorrect'?'var(--red)':'var(--muted)'};">${ptsStr}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+    container.appendChild(wg);
+  });
 }
 
 function editActive(){
@@ -759,7 +856,8 @@ async function loadMyBracketFromServer(){
 
 function renderLB(data){
   const gcEl=document.getElementById('gc-input');if(gcEl)gcEl.value=data.id||'';
-  document.getElementById('gs-name').innerHTML=data.name||'MY <em>GROUP</em>';
+  const gsNameEl=document.getElementById('gs-name');
+  if(data.name){gsNameEl.textContent=data.name;}else{gsNameEl.innerHTML='MY <em>GROUP</em>';}
   document.getElementById('gs-code').textContent=data.id||'';
   const lb=data.leaderboard||[];
   document.getElementById('gs-members').textContent=lb.length;
@@ -767,12 +865,10 @@ function renderLB(data){
   if(S.results.lastSynced)document.getElementById('gs-sync').textContent=ago(new Date(S.results.lastSynced));
   if(data.locked){document.getElementById('gs-lock').style.display='inline-flex';}else{document.getElementById('gs-lock').style.display='none';}
 
-  // Privacy notice
   const notice=document.getElementById('lb-notice');
   if(!data.locked)notice.textContent='🔒 Picks are hidden until the admin locks the group — only your own picks are visible.';
   else notice.textContent='';
 
-  // Show "load bracket" bar if user has no local bracket for this group
   const lbb=document.getElementById('load-bracket-bar');
   lbb.style.display=S.brackets.some(b=>b.groupId===data.id)?'none':'flex';
 
@@ -782,16 +878,14 @@ function renderLB(data){
   body.innerHTML='';
   const activeBracket=S.brackets.find(b=>b.pickId===S.activePickId);
   const myName=(activeBracket?.groupId===data.id?activeBracket:S.brackets.find(b=>b.groupId===data.id))?.picks?.name?.toLowerCase().trim();
-  const maxRank=Math.max(...lb.map(e=>e.rank||1));
 
   lb.forEach(entry=>{
     const rank=entry.rank||1;
     const isMe=entry.name?.toLowerCase().trim()===myName;
     const champHit=S.results.champion&&entry.champion===S.results.champion;
-    const isWinner=rank===1&&S.results.champion; // champion known = tournament over
+    const isWinner=rank===1&&S.results.champion;
     const isSecond=rank===2&&S.results.champion;
 
-    // Crown badges
     let rankHTML=`<span style="color:var(--muted);font-size:22px;font-family:'Bebas Neue',sans-serif;">${rank}</span>`;
     if(isWinner) rankHTML=`<span style="font-size:22px;">👑</span>`;
     else if(isSecond) rankHTML=`<span style="font-size:20px;">🥈</span>`;
@@ -799,12 +893,12 @@ function renderLB(data){
     const row=document.createElement('div');
     row.className='lb-row'+(isMe?' me':'')+(data.locked?'':' hidden-picks');
     row.innerHTML=`<div class="rank-cell">${rankHTML}</div>
-      <div><div class="lb-name">${entry.name}${isMe?'<span class="me-tag">YOU</span>':''}</div>
-        <div class="lb-name-sub">${entry.correctLeague||0}/20 league ✓</div></div>
+      <div><div class="lb-name">${esc(entry.name)}${isMe?'<span class="me-tag">YOU</span>':''}</div>
+        <div class="lb-name-sub">${entry.correctLeague||0}/${MATCHES.length} league ✓</div></div>
       <div class="lb-pts">${entry.pts}</div>
       <div class="lb-max">${entry.maxPts||'—'}</div>
       <div class="lb-champ lb-col-4 ${champHit?'hit':''}">
-        ${data.locked?`<span class="dot ${TD[entry.champion]||''}"></span>${entry.champion||'—'}`:'🔒 hidden'}</div>`;
+        ${data.locked?`<span class="dot ${TD[entry.champion]||''}"></span>${esc(entry.champion||'—')}`:'🔒 hidden'}</div>`;
 
     const detRow=document.createElement('div');
     detRow.className='lb-detail';
@@ -812,7 +906,6 @@ function renderLB(data){
       detRow.innerHTML=buildDetail(entry);
       row.addEventListener('click',()=>detRow.classList.toggle('open'));
     } else if(isMe){
-      // Pre-lock: show own picks from local bracket data
       const myB=S.brackets.find(b=>b.pickId===S.activePickId&&b.groupId===data.id)||S.brackets.find(b=>b.groupId===data.id&&b.picks.name.toLowerCase().trim()===myName);
       if(myB){
         const {breakdown}=score(myB.picks,S.results);
@@ -824,7 +917,6 @@ function renderLB(data){
     body.appendChild(detRow);
   });
 
-  // Update my rank display
   const myEntry=lb.find(e=>e.name?.toLowerCase().trim()===myName);
   if(myEntry)document.getElementById('my-rank').textContent=myEntry.rank||'—';
 }
@@ -832,14 +924,14 @@ function renderLB(data){
 function buildDetail(entry){
   const bd=entry.breakdown||{};
   return`<div class="detail-meta">
-    <div class="dm">🏆 Champion: <strong>${entry.champion||'—'}</strong></div>
-    <div class="dm" style="color:var(--green);">✅ ${entry.correctLeague||0}/20 correct</div>
+    <div class="dm">🏆 Champion: <strong>${esc(entry.champion||'—')}</strong></div>
+    <div class="dm" style="color:var(--green);">✅ ${entry.correctLeague||0}/${MATCHES.length} correct</div>
   </div>
   <div style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:9px;">PICKS</div>
   <div class="dpicks">
     ${(bd.league||[]).map(l=>{const m=MATCHES.find(x=>x.id===l.matchId);
       return`<div class="dp"><div><div class="dp-match">M${l.matchId} ${m?.date||''}</div>
-        <div class="dp-team"><span class="dot ${TD[l.pick]||''}"></span> ${l.pick||'—'}</div></div>
+        <div class="dp-team"><span class="dot ${TD[l.pick]||''}"></span> ${esc(l.pick||'—')}</div></div>
         <span class="chip ${l.status==='correct'?'chip-green':l.status==='incorrect'?'chip-red':'chip-gold'}" style="font-size:9px;padding:2px 5px;">
           ${l.status==='correct'?'+2':l.status==='incorrect'?'✗':'?'}</span></div>`;}).join('')}
   </div>`;
@@ -847,21 +939,100 @@ function buildDetail(entry){
 
 // ─── FORM BUILD ───────────────────────────────────────────────────────────────
 function buildForm(){
-  const mf=document.getElementById('f-matches');
-  MATCHES.forEach(m=>{
-    const d=document.createElement('div');d.className='mrow';
-    d.innerHTML=`<div class="mr-date">${m.date}</div><div style="flex:1;">
-      <div class="mr-id">MATCH ${m.id}</div>
-      <div class="rg">
-        <label class="rl"><input type="radio" name="m${m.id}" value="${m.t1}"><div class="rc"></div><span class="rl-name"><span class="dot ${m.c1}" style="width:9px;height:9px;"></span> ${m.t1}</span></label>
-        <label class="rl"><input type="radio" name="m${m.id}" value="${m.t2}"><div class="rc"></div><span class="rl-name"><span class="dot ${m.c2}" style="width:9px;height:9px;"></span> ${m.t2}</span></label>
-      </div></div>`;
-    mf.appendChild(d);
+  document.getElementById('fp-total').textContent = MATCHES.length;
+  const container = document.getElementById('f-matches');
+
+  WEEKS.forEach((wk, wi) => {
+    const fg = document.createElement('div');
+    fg.className = 'fw-group' + (wi===0 ? ' open' : '');
+    fg.dataset.week = wi;
+
+    const body = document.createElement('div');
+    body.className = 'fw-body';
+
+    wk.matches.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'mrow';
+      d.dataset.matchId = m.id;
+      d.innerHTML = `
+        <div>
+          <div class="mr-date">${m.date}</div>
+          <div class="mr-venue">${m.venue}</div>
+        </div>
+        <div style="flex:1;">
+          <div class="mr-id">MATCH ${m.id}</div>
+          <div class="rg">
+            <label class="rl">
+              <input type="radio" name="m${m.id}" value="${m.t1}" onchange="onPickChange(${m.id},this.closest('.mrow'))">
+              <div class="rc"></div>
+              <span class="rl-name"><span class="dot ${m.c1}"></span> ${m.t1}</span>
+            </label>
+            <label class="rl">
+              <input type="radio" name="m${m.id}" value="${m.t2}" onchange="onPickChange(${m.id},this.closest('.mrow'))">
+              <div class="rc"></div>
+              <span class="rl-name"><span class="dot ${m.c2}"></span> ${m.t2}</span>
+            </label>
+          </div>
+        </div>`;
+      body.appendChild(d);
+    });
+
+    fg.innerHTML = `
+      <div class="fw-hd" onclick="toggleWeek(this.parentElement)">
+        <div class="fw-hd-left">
+          <span class="fw-label">${wk.weekLabel}</span>
+          <span class="fw-dates">${wk.dateRange}</span>
+        </div>
+        <div class="fw-progress">
+          <span class="fw-prog-text" data-wk="${wi}">0/${wk.matches.length}</span>
+          <span class="fw-chev">▾</span>
+        </div>
+      </div>`;
+    fg.appendChild(body);
+    container.appendChild(fg);
   });
+
+  // Semis + champion (unchanged)
   const sf=document.getElementById('f-semis');
   TEAMS.forEach(t=>{const l=document.createElement('label');l.className='cl';l.innerHTML=`<input type="checkbox" name="semi" value="${t}" onchange="cntSemis()"><div class="cc"></div><span class="cl-name"><span class="dot ${TD[t]||''}"></span> ${t}</span>`;sf.appendChild(l);});
   const cf=document.getElementById('f-champ');
   TEAMS.forEach(t=>{const l=document.createElement('label');l.className='cr';l.innerHTML=`<input type="radio" name="champion" value="${t}"><div class="crc"></div><span class="cr-name"><span class="dot ${TD[t]||''}"></span> ${t}</span>`;cf.appendChild(l);});
+}
+
+function toggleWeek(fg){
+  fg.classList.toggle('open');
+}
+
+function onPickChange(matchId, mrow){
+  if(mrow) mrow.classList.add('picked');
+  updateFormProgress();
+}
+
+function updateFormProgress(){
+  let done = 0;
+  MATCHES.forEach(m=>{if(document.querySelector(`input[name=m${m.id}]:checked`))done++;});
+  const pct = Math.round(done/MATCHES.length*100);
+  document.getElementById('fp-bar').style.width = pct+'%';
+  document.getElementById('fp-done').textContent = done;
+
+  // Update per-week counters
+  WEEKS.forEach((wk, wi) => {
+    const wDone = wk.matches.filter(m=>document.querySelector(`input[name=m${m.id}]:checked`)).length;
+    const el = document.querySelector(`.fw-prog-text[data-wk="${wi}"]`);
+    if(el){
+      el.textContent = `${wDone}/${wk.matches.length}`;
+      el.className = 'fw-prog-text' + (wDone===wk.matches.length ? ' complete' : '');
+    }
+    // Auto-open next incomplete week when current week is fully picked
+    if(wDone === wk.matches.length && wi < WEEKS.length-1){
+      const groups = document.querySelectorAll('.fw-group');
+      const nextGroup = groups[wi+1];
+      if(nextGroup && !nextGroup.classList.contains('open')){
+        // only auto-open if current group triggered it just now (all picked)
+        // we do this silently — user can still collapse manually
+      }
+    }
+  });
 }
 
 function cntSemis(){
@@ -872,7 +1043,9 @@ function cntSemis(){
 }
 
 // ─── SUBMIT / EDIT ────────────────────────────────────────────────────────────
+let _isSubmitting = false;
 async function submitPicks(){
+  if(_isSubmitting)return;
   const name=document.getElementById('f-name').value.trim();
   const gid=document.getElementById('f-group').value.trim().toUpperCase();
   if(!name)return toast('Enter your name',true);
@@ -890,6 +1063,7 @@ async function submitPicks(){
   if(!champ)return toast('Pick your Season Champion',true);
 
   const payload={name,groupId:gid,matches,semis,champion:champ.value};
+  _isSubmitting=true;
   const btn=document.getElementById('sub-btn');
   btn.disabled=true;btn.innerHTML=`<span class="spin"></span> ${S.editMode?'Saving…':'Submitting…'}`;
 
@@ -916,7 +1090,7 @@ async function submitPicks(){
     if(S.editMode)cancelEdit();
     setTimeout(()=>goTab('my'),1200);
   }catch(e){toast(e.message,true);}
-  finally{btn.disabled=false;btn.innerHTML=S.editMode?'💾 SAVE CHANGES →':'SUBMIT BRACKET →';}
+  finally{_isSubmitting=false;btn.disabled=false;btn.innerHTML=S.editMode?'💾 SAVE CHANGES →':'SUBMIT BRACKET →';}
 }
 
 function upsertBracket(gid,pickId,picks,locked){
@@ -936,10 +1110,17 @@ function startEdit(gid,name){
   document.getElementById('eb-sub').textContent=`Editing bracket for group ${gid}.`;
   document.getElementById('edit-banner').style.display='flex';
   document.getElementById('sub-btn').innerHTML='💾 SAVE CHANGES →';
-  MATCHES.forEach(m=>{const p=document.querySelector(`input[name=m${m.id}][value="${b.picks.matches?.[m.id]||''}"]`);if(p)p.checked=true;});
+  const weeksToOpen=new Set();
+  MATCHES.forEach(m=>{
+    const p=document.querySelector(`input[name=m${m.id}][value="${b.picks.matches?.[m.id]||''}"]`);
+    if(p){p.checked=true; const row=p.closest('.mrow'); if(row)row.classList.add('picked');
+      const wk=p.closest('.fw-group'); if(wk)weeksToOpen.add(wk);}
+  });
+  weeksToOpen.forEach(wk=>wk.classList.add('open'));
   document.querySelectorAll('input[name=semi]').forEach(c=>{c.checked=(b.picks.semis||[]).includes(c.value);c.disabled=false;});
   cntSemis();
   document.querySelectorAll('input[name=champion]').forEach(r=>r.checked=r.value===b.picks.champion);
+  updateFormProgress();
   goTab('enter');window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -950,7 +1131,9 @@ function cancelEdit(){
   document.getElementById('f-name').readOnly=false;document.getElementById('f-group').readOnly=false;
   document.getElementById('f-name').value='';document.getElementById('f-group').value='';
   document.querySelectorAll('input[name^=m],input[name=semi],input[name=champion]').forEach(el=>{el.checked=false;el.disabled=false;});
+  document.querySelectorAll('.mrow').forEach(r=>r.classList.remove('picked'));
   document.getElementById('semi-cnt').textContent='0';
+  updateFormProgress();
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
