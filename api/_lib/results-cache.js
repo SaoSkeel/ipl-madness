@@ -2,7 +2,7 @@
 const { db } = require('./firebase');
 
 let _cache = null, _cacheTime = 0, _cachePromise = null;
-const TTL = 60_000;
+const TTL = 300_000; // 5 min — safe since cron syncs every 30 min; admin overrides invalidate immediately
 
 async function getResults() {
   const now = Date.now();

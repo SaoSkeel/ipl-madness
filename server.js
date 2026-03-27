@@ -15,6 +15,17 @@ const crypto    = require('crypto');
 
 const { admin, db }                       = require('./api/_lib/firebase');
 const { getResults, invalidateResultsCache } = require('./api/_lib/results-cache');
+
+// ─── Group cache (30s TTL, per-group key) ────────────────────────────────────
+const _groupCache = new Map();
+const GROUP_CACHE_TTL = 30_000;
+function getCachedGroup(gid) {
+  const entry = _groupCache.get(gid);
+  if (entry && Date.now() - entry.time < GROUP_CACHE_TTL) return entry.data;
+  return null;
+}
+function setCachedGroup(gid, data) { _groupCache.set(gid, { data, time: Date.now() }); }
+function invalidateGroupCache(gid) { if (gid) _groupCache.delete(gid); else _groupCache.clear(); }
 const { recomputeGroup, recomputeAllGroups } = require('./api/_lib/scoring');
 const { makePickId }                         = require('./api/_lib/utils');
 const { syncResults }                        = require('./api/_lib/sync');
@@ -78,14 +89,18 @@ app.get('/api/group/:groupId/picks', async (req, res) => {
 
 app.get('/api/group/:groupId', async (req, res) => {
   try {
-    const gid  = req.params.groupId.toUpperCase();
+    const gid    = req.params.groupId.toUpperCase();
+    const cached = getCachedGroup(gid);
+    if (cached) return res.json(cached);
     const doc  = await db.collection('groups').doc(gid).get();
     if (!doc.exists) return res.status(404).json({ error: 'Group not found' });
     const data = doc.data();
     const lb   = (data.leaderboard || []).map(e =>
       data.locked ? e : { rank: e.rank, name: e.name, pts: e.pts, maxPts: e.maxPts }
     );
-    res.json({ id: gid, name: data.name, locked: data.locked || false, leaderboard: lb, lastScored: data.lastScored || null });
+    const response = { id: gid, name: data.name, locked: data.locked || false, leaderboard: lb, lastScored: data.lastScored || null };
+    setCachedGroup(gid, response);
+    res.json(response);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -169,6 +184,7 @@ async function handlePicksSubmit(req, res, forceEdit) {
     const { pts, breakdown } = scoreBracket(payload, results);
     const mx                 = maxPossible(payload, results);
     await recomputeGroup(gid, results);
+    invalidateGroupCache(gid);
     res.json({ ok: true, pickId, pts, maxPts: mx, breakdown });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 }
@@ -215,14 +231,17 @@ app.delete('/api/admin/group/:groupId', adminAuth, async (req, res) => {
     picksSnap.docs.forEach(d => batch.delete(d.ref));
     batch.delete(groupRef);
     await batch.commit();
+    invalidateGroupCache(gid);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/group/:groupId/lock', adminAuth, async (req, res) => {
   try {
+    const gid    = req.params.groupId.toUpperCase();
     const locked = req.body.locked !== false;
-    await db.collection('groups').doc(req.params.groupId.toUpperCase()).update({ locked });
+    await db.collection('groups').doc(gid).update({ locked });
+    invalidateGroupCache(gid);
     res.json({ ok: true, locked });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -281,6 +300,7 @@ app.post('/api/admin/result', adminAuth, async (req, res) => {
       await batch.commit();
     }
     await recomputeAllGroups(results);
+    invalidateGroupCache();
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -288,6 +308,7 @@ app.post('/api/admin/result', adminAuth, async (req, res) => {
 app.post('/api/admin/sync', adminAuth, async (req, res) => {
   try {
     invalidateResultsCache();
+    invalidateGroupCache();
     res.json(await syncResults());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

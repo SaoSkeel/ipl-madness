@@ -13,13 +13,14 @@ async function recomputeGroup(groupId, results) {
       name: p.name,
       pts,
       maxPts: mx,
+      finalRuns: p.finalRuns || null,
       champion: p.champion,
       semis: p.semis || [],
       correctLeague: breakdown.league.filter(l => l.status === 'correct').length,
       matchPicks: breakdown.league.map(l => ({ matchId: l.matchId, pick: l.pick, status: l.status })),
     };
   });
-  const ranked = rankLeaderboard(entries);
+  const ranked = rankLeaderboard(entries, results?.finalRuns || null);
   const lean = ranked.map(({ uid: _uid, ...rest }) => rest);
   await db.collection('groups').doc(groupId).update({
     leaderboard: lean,

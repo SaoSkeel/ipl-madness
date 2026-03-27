@@ -96,12 +96,30 @@ function maxPossible(picks, results) {
 /**
  * Dense-rank: same pts → same rank, next rank is consecutive (no gap).
  * e.g. [30,30,20] → ranks [1,1,2] not [1,1,3].
+ * finalRuns tiebreaker only activates at end of tournament (when actualFinalRuns is set).
+ * During the season, tied players share the same rank.
  */
-function rankLeaderboard(entries) {
-  const sorted = [...entries].sort((a,b) => b.pts - a.pts || a.name.localeCompare(b.name));
+function rankLeaderboard(entries, actualFinalRuns) {
+  const sorted = [...entries].sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    // Tiebreaker: only at end of tournament (Final has been played)
+    if (actualFinalRuns) {
+      const diffA = Math.abs((a.finalRuns || 0) - actualFinalRuns);
+      const diffB = Math.abs((b.finalRuns || 0) - actualFinalRuns);
+      if (diffA !== diffB) return diffA - diffB;
+    }
+    return a.name.localeCompare(b.name);
+  });
   let rank = 1;
   for (let i = 0; i < sorted.length; i++) {
-    if (i > 0 && sorted[i].pts !== sorted[i-1].pts) rank++;
+    if (i > 0) {
+      const prev = sorted[i - 1], curr = sorted[i];
+      const ptsDiffer = curr.pts !== prev.pts;
+      const tbDiffer  = actualFinalRuns &&
+        Math.abs((curr.finalRuns || 0) - actualFinalRuns) !==
+        Math.abs((prev.finalRuns || 0) - actualFinalRuns);
+      if (ptsDiffer || tbDiffer) rank++;
+    }
     sorted[i].rank = rank;
   }
   return sorted;

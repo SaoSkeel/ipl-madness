@@ -8,11 +8,24 @@ const { recomputeAllGroups } = require('./scoring');
 const API_KEY  = process.env.CRICKETDATA_API_KEY;
 const SERIES_ID = process.env.IPL_SERIES_ID;
 const BASE     = 'https://api.cricapi.com/v1';
+const PAGE_SIZE = 50;
+
+// Returns true only if there's actual work to do (avoids burning API quota on idle days)
+function hasWorkToDo(current) {
+  const today      = new Date().toISOString().slice(0, 10);
+  const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const lastLeagueDate = MATCHES[MATCHES.length - 1].date;
+
+  const matchToday      = MATCHES.some(m => m.date === today);
+  const recentUnresolved = MATCHES.some(m => m.date >= twoDaysAgo && m.date < today && !current.matches?.[m.id]);
+  const playoffsPending  = today > lastLeagueDate && !current.champion;
+
+  return matchToday || recentUnresolved || playoffsPending;
+}
 
 async function fetchSeriesMatches() {
   const allMatches = [];
   let offset = 0;
-  const pageSize = 25;
   while (true) {
     const url = `${BASE}/series_info?apikey=${API_KEY}&id=${SERIES_ID}&offset=${offset}`;
     const res  = await fetch(url);
@@ -20,8 +33,8 @@ async function fetchSeriesMatches() {
     if (json.status !== 'success') throw new Error(`API error: ${JSON.stringify(json)}`);
     const page = json.data?.matchList || [];
     allMatches.push(...page);
-    if (page.length < pageSize) break;
-    offset += pageSize;
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
   }
   return allMatches;
 }
@@ -63,8 +76,19 @@ function matchToLocal(apiMatch) {
   });
 }
 
-async function syncResults() {
+async function syncResults({ force = false } = {}) {
   console.log(`[${new Date().toISOString()}] Starting IPL results sync...`);
+
+  const resultsRef  = db.collection('ipl2026').doc('results');
+  const currentSnap = await resultsRef.get();
+  const current     = currentSnap.exists
+    ? currentSnap.data()
+    : { matches: {}, semis: [], champion: null, finalRuns: null };
+
+  if (!force && !hasWorkToDo(current)) {
+    console.log('  Skipping API call — no matches today, no recent unresolved matches, no pending playoffs.');
+    return { ok: true, changed: false, skipped: true };
+  }
 
   let apiMatches;
   try {
@@ -74,12 +98,6 @@ async function syncResults() {
     console.error('  Failed to fetch series:', err.message);
     return { ok: false, error: err.message };
   }
-
-  const resultsRef   = db.collection('ipl2026').doc('results');
-  const currentSnap  = await resultsRef.get();
-  const current      = currentSnap.exists
-    ? currentSnap.data()
-    : { matches: {}, semis: [], champion: null, finalRuns: null };
 
   const updatedMatches = { ...current.matches };
   let changed = false;
