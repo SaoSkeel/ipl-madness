@@ -26,6 +26,7 @@ No test runner or linter is configured. Requires Node.js >=18.
 - **[src/matches.js](src/matches.js)** — Game logic: `MATCHES[]` (70 league games, imported from `src/fixtures.js`), `scoreBracket()`, `maxPossible()`, `rankLeaderboard()`, `TEAM_NAME_MAP` for normalizing API team names
 - **[public/fixtures.js](public/fixtures.js)** — Browser-compatible copy of fixtures (global `var FIXTURES`, no require/exports). Must be kept in sync with `src/fixtures.js` manually — it's a duplicate with different module syntax.
 - **[public/index.html](public/index.html)** — Single-page frontend (bracket entry, group leaderboard, pick editing)
+- **[public/bracketcast.html](public/bracketcast.html)** — Read-only group comparison view (matrix of all players' picks vs results). Only accessible once the group is locked.
 - **[public/admin.html](public/admin.html)** — Admin panel (group management, manual result overrides, force sync)
 
 ### `api/_lib/` Shared Modules
@@ -44,6 +45,8 @@ No test runner or linter is configured. Requires Node.js >=18.
 3. `syncResults()` fetches CricketData API, matches results to local `MATCHES[]` by date + normalized team names, writes to `ipl2026/results`
 4. `recomputeLeaderboards()` rescores all groups using `scoreBracket()` and updates leaderboard arrays in `groups/{groupId}`
 5. Frontend polls `/api/results` and `/api/group/:id`
+
+The leaderboard array stored in Firestore (and returned by `/api/group/:id`) embeds per-player pick data: `matchPicks[]`, `semis[]`, `champion`, `pts`, `maxPts`, `correctLeague`, `rank`. This is what the bracketcast view reads — it does not need a separate picks fetch.
 
 ### Firestore Structure
 
@@ -85,5 +88,6 @@ Copy `.env.example` to `.env`:
 - **Team name normalization**: CricketData API returns team names that differ from local names. `TEAM_NAME_MAP` in `src/matches.js` handles the mapping — update this if the API changes team name formats.
 - **GitHub Actions sync**: `.github/workflows/sync-results.yml` hits `/api/admin/sync` on a 30-min cron.
 - **Admin auth**: All `/api/admin/*` routes require `x-admin-password` header matching `ADMIN_PASSWORD` env var.
-- **Bracket locking**: Groups can be locked by admin to prevent new submissions. Edits to existing picks are still allowed via `PUT /api/picks`.
+- **Bracket locking**: Groups can be locked by admin to prevent new submissions. Edits to existing picks are still allowed via `PUT /api/picks`. Locking is also the gate for the bracketcast view — `GET /api/group/:groupId/picks` returns 403 if not locked.
+- **Bracketcast**: `public/bracketcast.html` + `public/js/bracketcast.js` render a scrollable matrix comparing all group members' picks side-by-side. It reads `group.leaderboard[]` (which already contains `matchPicks`, `semis`, `champion`) — no extra API calls needed beyond `/api/group/:id` and `/api/results`.
 - **All Firestore writes go through server** using Firebase Admin SDK — client-side rules deny all writes directly.

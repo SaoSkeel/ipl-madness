@@ -38,7 +38,7 @@
 
 /* ─── Sticky header row ──────────────────────────────────────────────────── */
 .bc-table thead th{
-  position:sticky;top:64px;
+  position:sticky;top:0;
   background:var(--bg3);
   z-index:10;
   border-bottom:1px solid rgba(255,255,255,.08);
@@ -65,15 +65,16 @@
 .bc-mteams{font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;flex-wrap:nowrap;margin-top:2px;}
 .bc-vs{color:var(--muted);font-size:9px;font-weight:400;margin:0 1px;}
 .bc-mresult{font-size:10px;color:var(--gold);margin-top:3px;font-family:'Space Mono',monospace;}
-.bc-match-hd-inner{padding:10px 10px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.bc-match-hd-inner{padding:4px 10px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
 
 /* ─── Player header ──────────────────────────────────────────────────────── */
 .bc-player-hd{
   min-width:76px;width:76px;
   text-align:center;
-  padding:8px 4px 10px;
+  padding:4px 4px 6px;
   border-left:1px solid rgba(255,255,255,.04);
   vertical-align:bottom;
+  height:1px;
 }
 .bc-player-hd.bc-me{
   background:rgba(245,166,35,.08) !important;
@@ -82,17 +83,17 @@
 .bc-rank-badge{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px;color:var(--muted);line-height:1;}
 .bc-player-name{
   font-size:11px;font-weight:700;color:var(--text);
-  margin-top:3px;
+  margin-top:2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   max-width:68px;margin-left:auto;margin-right:auto;
 }
-.bc-player-pts{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);margin-top:2px;}
+.bc-player-pts{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);margin-top:1px;}
 
 /* ─── Champion badge in header ───────────────────────────────────────────── */
 .bc-player-champ{
   font-family:'Space Mono',monospace;
   font-size:9px;font-weight:700;
-  margin-top:5px;
+  margin-top:3px;
   display:inline-flex;align-items:center;justify-content:center;gap:3px;
   padding:2px 6px;border-radius:4px;
   max-width:68px;
@@ -100,6 +101,38 @@
 .bc-champ-correct{background:var(--green-dim);color:var(--green);}
 .bc-champ-wrong{background:var(--red-dim);color:var(--red);text-decoration:line-through;opacity:.8;}
 .bc-champ-pending{background:rgba(107,114,144,.1);color:var(--muted);}
+
+/* ─── Frozen "You" column ────────────────────────────────────────────────── */
+:root{--match-col-w:136px;}
+
+.bc-player-hd.bc-me-col{
+  position:sticky;
+  left:var(--match-col-w);
+  z-index:14;
+  background:rgba(245,166,35,.1);
+  border-right:2px solid var(--gold-b);
+  border-left:none;
+}
+
+.bc-me-you-badge{
+  font-family:'Space Mono',monospace;
+  font-size:8px;letter-spacing:2px;
+  color:var(--gold);font-weight:700;
+  margin-bottom:1px;
+}
+
+/* Body cells for the frozen column — sticky left, gold right border.
+   Background is intentionally omitted here so bc-correct/bc-wrong win.
+   Pending cells get a gold tint via the :not() rule below. */
+.bc-me-col-cell{
+  position:sticky;
+  left:var(--match-col-w);
+  z-index:4;
+  border-right:2px solid rgba(245,166,35,.3);
+}
+.bc-me-col-cell:not(.bc-correct):not(.bc-wrong){
+  background:rgba(245,166,35,.06);
+}
 
 /* ─── Pick cells ─────────────────────────────────────────────────────────── */
 .bc-cell{
@@ -150,6 +183,7 @@
 
 /* ─── Mobile ─────────────────────────────────────────────────────────────── */
 @media(max-width:768px){
+  :root{--match-col-w:104px;}
   .bc-scroll-hint-mob{display:block;}
 
   /* Tighten match info column */
@@ -174,6 +208,7 @@
 }
 
 @media(max-width:480px){
+  :root{--match-col-w:88px;}
   .bc-match-hd,.bc-match-info{min-width:88px;max-width:88px;width:88px;}
   .bc-player-hd,.bc-cell{min-width:54px;width:54px;}
   .bc-player-champ{display:none;} /* hide champ badge in header on very small screens — visible in playoff table instead */

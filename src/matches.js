@@ -39,8 +39,8 @@ function scoreBracket(picks, results) {
   const breakdown = { league:[], semis:[], champion:null };
 
   for (const m of MATCHES) {
-    const pick = picks.matches?.[m.id];
-    const res  = r.matches?.[m.id];
+    const pick = picks.matches?.[String(m.id)];
+    const res  = r.matches?.[String(m.id)];
     if (!pick) continue;
     if (!res) {
       breakdown.league.push({ matchId:m.id, pick, result:null, status:'pending', pts:0 });
@@ -81,8 +81,8 @@ function maxPossible(picks, results) {
   const r = results || {};
   let max = 0;
   for (const m of MATCHES) {
-    const res  = r.matches?.[m.id];
-    const pick = picks.matches?.[m.id];
+    const res  = r.matches?.[String(m.id)];
+    const pick = picks.matches?.[String(m.id)];
     if (!res || pick === res) max += POINTS.match;
   }
   const semisKnown = !!(r.semis && r.semis.length);

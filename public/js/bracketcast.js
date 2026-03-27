@@ -51,7 +51,7 @@ function groupByWeek(matches) {
 const WEEKS = groupByWeek(MATCHES);
 
 // ─── State ────────────────────────────────────────────────────────────────
-const S = { groupId: null, group: null, results: {}, myNames: [] };
+const S = { groupId: null, group: null, results: {}, myNames: [], myEntry: null };
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -94,6 +94,14 @@ async function loadGroup(gid) {
         .map(b => b.picks?.name?.trim().toLowerCase())
         .filter(Boolean);
     } catch { S.myNames = []; }
+
+    // Find my leaderboard entry for the frozen column
+    S.myEntry = null;
+    if (S.myNames.length) {
+      S.myEntry = (group.leaderboard || []).find(e =>
+        S.myNames.includes((e.name || '').trim().toLowerCase())
+      ) || null;
+    }
 
     hide('bc-loading');
 
@@ -157,13 +165,58 @@ function playerHeaderHTML(p) {
   </th>`;
 }
 
+// ─── Frozen "You" column helpers ──────────────────────────────────────────
+function myColHeaderHTML() {
+  if (!S.myEntry) return '';
+  const p = S.myEntry;
+  const champAbbr = p.champion ? (TI[p.champion] || p.champion) : '';
+  let champCls = 'bc-champ-pending';
+  if (S.results.champion) {
+    champCls = p.champion === S.results.champion ? 'bc-champ-correct' : 'bc-champ-wrong';
+  }
+  return `<th class="bc-player-hd bc-me-col">
+    <div class="bc-me-you-badge">YOU</div>
+    <div class="bc-rank-badge">${p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '#' + p.rank}</div>
+    <div class="bc-player-name" title="${esc(p.name)}">${esc(p.name)}</div>
+    <div class="bc-player-pts">${p.pts}pts</div>
+    ${champAbbr ? `<div class="bc-player-champ ${champCls}"><span class="dot ${TD[p.champion]||''}"></span>${champAbbr}</div>` : ''}
+  </th>`;
+}
+
+function myMatchCellHTML(matchId) {
+  if (!S.myEntry) return '';
+  const mp = (S.myEntry.matchPicks || []).find(x => x.matchId === matchId);
+  if (!mp) return `<td class="bc-cell bc-me-col-cell bc-empty">—</td>`;
+  const cls = mp.status === 'correct' ? 'bc-correct' : mp.status === 'incorrect' ? 'bc-wrong' : 'bc-pending';
+  return `<td class="bc-cell bc-me-col-cell ${cls}"><span class="dot ${TD[mp.pick]||''}"></span> ${TI[mp.pick]||mp.pick}</td>`;
+}
+
+function mySemiCellHTML(i) {
+  if (!S.myEntry) return '';
+  const pick = (S.myEntry.semis || [])[i];
+  if (!pick) return `<td class="bc-cell bc-me-col-cell bc-empty">—</td>`;
+  let cls = 'bc-pending';
+  if (S.results.semis?.length) cls = S.results.semis.includes(pick) ? 'bc-correct' : 'bc-wrong';
+  return `<td class="bc-cell bc-me-col-cell ${cls}"><span class="dot ${TD[pick]||''}"></span> ${TI[pick]||pick}</td>`;
+}
+
+function myChampCellHTML() {
+  if (!S.myEntry) return '';
+  const pick = S.myEntry.champion;
+  if (!pick) return `<td class="bc-cell bc-me-col-cell bc-empty">—</td>`;
+  let cls = 'bc-pending';
+  if (S.results.champion) cls = pick === S.results.champion ? 'bc-correct' : 'bc-wrong';
+  return `<td class="bc-cell bc-me-col-cell ${cls}"><span class="dot ${TD[pick]||''}"></span> ${TI[pick]||pick}</td>`;
+}
+
 // ─── League match matrix ──────────────────────────────────────────────────
 function renderMatrix() {
   const players = getPlayers();
-  const totalCols = players.length + 1;
+  const totalCols = players.length + 1 + (S.myEntry ? 1 : 0);
 
   let html = `<div class="bc-outer"><div class="bc-scroll-hint-mob">swipe right to see all players →</div><div class="bc-wrap"><table class="bc-table"><thead><tr>
     <th class="bc-match-hd"><div class="bc-match-hd-inner">Match</div></th>
+    ${myColHeaderHTML()}
     ${players.map(playerHeaderHTML).join('')}
   </tr></thead><tbody>`;
 
@@ -173,13 +226,14 @@ function renderMatrix() {
     </tr>`;
 
     wk.matches.forEach(m => {
-      const result = S.results.matches?.[m.id];
+      const result = S.results.matches?.[String(m.id)];
       html += `<tr>
         <td class="bc-match-info">
           <div class="bc-mid">M${m.id} · ${m.date}</div>
           <div class="bc-mteams"><span class="dot ${m.c1}"></span>${TI[m.t1]||m.t1}<span class="bc-vs">v</span><span class="dot ${m.c2}"></span>${TI[m.t2]||m.t2}</div>
           ${result ? `<div class="bc-mresult">→ ${TI[result]||result}</div>` : ''}
         </td>
+        ${myMatchCellHTML(m.id)}
         ${players.map(p => {
           const mp = (p.matchPicks || []).find(x => x.matchId === m.id);
           if (!mp) return `<td class="bc-cell bc-empty${p.isMe?' bc-me-cell':''}">—</td>`;
@@ -198,12 +252,13 @@ function renderMatrix() {
 // ─── Playoff comparison ───────────────────────────────────────────────────
 function renderPlayoffs() {
   const players = getPlayers();
-  const totalCols = players.length + 1;
+  const totalCols = players.length + 1 + (S.myEntry ? 1 : 0);
   const semisKnown = !!(S.results.semis?.length);
   const champKnown = !!S.results.champion;
 
   let html = `<div class="bc-outer"><div class="bc-scroll-hint-mob">swipe right to see all players →</div><div class="bc-wrap"><table class="bc-table"><thead><tr>
     <th class="bc-match-hd"><div class="bc-match-hd-inner">Playoff Picks</div></th>
+    ${myColHeaderHTML()}
     ${players.map(playerHeaderHTML).join('')}
   </tr></thead><tbody>`;
 
@@ -219,6 +274,7 @@ function renderPlayoffs() {
         <div class="bc-mid">SF Pick #${i+1}</div>
         ${knownSemi ? `<div class="bc-mresult">→ ${TI[knownSemi]||knownSemi}</div>` : ''}
       </td>
+      ${mySemiCellHTML(i)}
       ${players.map(p => {
         const pick = (p.semis || [])[i];
         if (!pick) return `<td class="bc-cell bc-empty${p.isMe?' bc-me-cell':''}">—</td>`;
@@ -238,6 +294,7 @@ function renderPlayoffs() {
       <div class="bc-mid">🏆 Pick</div>
       ${champKnown ? `<div class="bc-mresult">→ ${TI[S.results.champion]||S.results.champion}</div>` : ''}
     </td>
+    ${myChampCellHTML()}
     ${players.map(p => {
       const pick = p.champion;
       if (!pick) return `<td class="bc-cell bc-empty${p.isMe?' bc-me-cell':''}">—</td>`;

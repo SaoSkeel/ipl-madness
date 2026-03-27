@@ -1,4 +1,5 @@
 :root{
+  --header-h:65px;
   --gold:#F5A623;--gold-dk:#C4821A;--gold-dim:rgba(245,166,35,.1);--gold-b:rgba(245,166,35,.22);
   --bg:#080A12;--bg2:#0E1020;--bg3:#141828;--bg4:#1A1F34;
   --text:#EDF0FF;--muted:#6B7290;
