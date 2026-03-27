@@ -98,11 +98,13 @@ async function loadMembers(gid,name){
         ${p.pin?'<span class="pin-badge">🔒 PIN set</span>':'<span style="font-size:10px;color:var(--muted);font-family:\'Space Mono\',monospace;">no PIN</span>'}
       </div>
       <div style="display:flex;gap:6px;">
+        <button class="bsm rename-pick-btn">✏️ Rename</button>
         ${p.pin?'<button class="bsm reset-pin-btn">Reset PIN</button>':''}
         <button class="bsm bred delete-pick-btn">🗑 Delete</button>
       </div>`;
       div.querySelector('.delete-pick-btn').addEventListener('click',()=>deletePick(gid,p.pickId,p.name));
       div.querySelector('.reset-pin-btn')?.addEventListener('click',()=>resetPin(gid,p.pickId,p.name,div));
+      div.querySelector('.rename-pick-btn').addEventListener('click',()=>renamePick(gid,p.pickId,p.name));
       list.appendChild(div);
     });
   }catch(e){document.getElementById('members-list').innerHTML=`<div style="color:var(--red);font-size:12px;">${e.message}</div>`;}
@@ -118,6 +120,14 @@ async function resetPin(gid,pickId,name,rowEl){
     rowEl.querySelector('.pin-badge')?.remove();
     rowEl.querySelector('.reset-pin-btn')?.remove();
   }else toast(data.error,true);
+}
+
+async function renamePick(gid,pickId,name){
+  const newName=prompt(`Rename "${name}" to:`,name);
+  if(!newName||newName.trim()===name)return;
+  const r=await post(`/api/admin/group/${gid}/picks/${encodeURIComponent(pickId)}/rename`,{newName:newName.trim()});
+  if(r.ok){toast(`Renamed "${name}" → "${newName.trim()}"`);addLog(`[Rename] ${name} → ${newName.trim()} in ${gid}`);loadMembers(gid,'');}
+  else toast(r.error,true);
 }
 
 async function deletePick(gid,pickId,name){
