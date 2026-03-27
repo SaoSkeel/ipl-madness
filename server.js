@@ -246,6 +246,35 @@ app.post('/api/admin/group/:groupId/lock', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/admin/group/:groupId/picks/:pickId/rename', adminAuth, async (req, res) => {
+  try {
+    const gid       = req.params.groupId.toUpperCase();
+    const oldPickId = req.params.pickId;
+    const newName   = req.body.newName?.trim();
+    if (!newName) return res.status(400).json({ error: 'newName required' });
+
+    const newPickId   = makePickId(newName, gid);
+    if (newPickId === oldPickId) return res.status(400).json({ error: 'Name is the same' });
+
+    const groupRef    = db.collection('groups').doc(gid);
+    const oldRef      = groupRef.collection('picks').doc(oldPickId);
+    const newRef      = groupRef.collection('picks').doc(newPickId);
+
+    const [oldSnap, newSnap] = await Promise.all([oldRef.get(), newRef.get()]);
+    if (!oldSnap.exists) return res.status(404).json({ error: 'Pick not found' });
+    if (newSnap.exists)  return res.status(409).json({ error: `A pick already exists for "${newName}"` });
+
+    const payload = { ...oldSnap.data(), name: newName, groupId: gid };
+    await newRef.set(payload);
+    await oldRef.delete();
+
+    const results = await getResults();
+    await recomputeGroup(gid, results);
+    invalidateGroupCache(gid);
+    res.json({ ok: true, oldPickId, newPickId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/admin/group/:groupId/picks/:pickId/reset-pin', adminAuth, async (req, res) => {
   try {
     const gid = req.params.groupId.toUpperCase();
