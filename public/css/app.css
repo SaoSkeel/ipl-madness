@@ -290,3 +290,31 @@ main{max-width:1440px;margin:0 auto;padding:32px 24px;position:relative;z-index:
   main{padding:18px 14px;}
   .fw-dates{display:none;}
 }
+@media(max-width:480px){
+  /* Header — logo + 3 nav buttons + sync overflows 375px; shrink logo, drop sync */
+  .logo-title{font-size:18px;letter-spacing:2px;}
+  .sync{display:none;}
+
+  /* Group strip — tighter stat values at narrow widths */
+  .group-strip{padding:16px 14px;}
+  .gs-stats{gap:16px;}
+  .gs-stat .val{font-size:26px;}
+
+  /* Leaderboard — restore all columns (incl. champion hidden at 900px) and let the
+     whole table scroll horizontally rather than hiding any columns */
+  .lb-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .lb-col-4{display:flex;}
+  .lb-head,.lb-row{grid-template-columns:44px minmax(120px,1fr) 70px 90px 110px;min-width:480px;}
+
+  /* Results match table — let it scroll horizontally inside the week accordion */
+  .week-body{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+  /* Enter Picks match rows — let wide rows scroll rather than clip */
+  .fw-body{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+  /* Submit button — full width so it doesn't clip at narrow viewport */
+  .sub-btn{width:100%;justify-content:center;font-size:18px;padding:14px 24px;letter-spacing:2px;}
+
+  /* Edit banner — stack text and cancel button vertically */
+  .edit-banner{flex-direction:column;align-items:flex-start;}
+}
