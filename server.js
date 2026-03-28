@@ -355,5 +355,16 @@ if (process.env.NODE_ENV !== 'test') {
 
 app.listen(PORT, () => {
   console.log(`\n🏏 IPL Madness 2K26 → http://localhost:${PORT}`);
-  if (process.env.NODE_ENV !== 'test') setTimeout(() => { invalidateResultsCache(); syncResults(); }, 3000);
+  if (process.env.NODE_ENV !== 'test') setTimeout(async () => {
+    try {
+      const snap = await db.collection('ipl2026').doc('results').get();
+      const lastSynced = snap.exists ? snap.data().lastSynced : null;
+      if (lastSynced && Date.now() - new Date(lastSynced).getTime() < mins * 60_000) {
+        console.log(`  Startup sync skipped — last sync was ${Math.round((Date.now() - new Date(lastSynced).getTime()) / 60_000)}m ago.`);
+        return;
+      }
+      invalidateResultsCache();
+      await syncResults();
+    } catch (e) { console.error('Startup sync failed:', e.message); }
+  }, 3000);
 });

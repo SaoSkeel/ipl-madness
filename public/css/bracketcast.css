@@ -109,7 +109,7 @@
   position:sticky;
   left:var(--match-col-w);
   z-index:14;
-  background:rgba(245,166,35,.1);
+  background:linear-gradient(rgba(245,166,35,.28),rgba(245,166,35,.28)),var(--bg3);
   border-right:2px solid var(--gold-b);
   border-left:none;
 }
@@ -122,8 +122,7 @@
 }
 
 /* Body cells for the frozen column — sticky left, gold right border.
-   Background is intentionally omitted here so bc-correct/bc-wrong win.
-   Pending cells get a gold tint via the :not() rule below. */
+   All states use opaque backgrounds so nothing bleeds through the sticky column. */
 .bc-me-col-cell{
   position:sticky;
   left:var(--match-col-w);
@@ -131,7 +130,13 @@
   border-right:2px solid rgba(245,166,35,.3);
 }
 .bc-me-col-cell:not(.bc-correct):not(.bc-wrong){
-  background:rgba(245,166,35,.06);
+  background:linear-gradient(rgba(245,166,35,.22),rgba(245,166,35,.22)),var(--bg2);
+}
+.bc-me-col-cell.bc-correct{
+  background:linear-gradient(rgba(41,216,120,.28),rgba(41,216,120,.28)),var(--bg2);
+}
+.bc-me-col-cell.bc-wrong{
+  background:linear-gradient(rgba(255,59,92,.28),rgba(255,59,92,.28)),var(--bg2);
 }
 
 /* ─── Pick cells ─────────────────────────────────────────────────────────── */
@@ -164,7 +169,6 @@
   color:var(--gold);
   border-top:2px solid var(--gold-b);
   white-space:nowrap;
-  position:sticky;left:0; /* keep week label visible while scrolling right */
 }
 .bc-week-dates-label{
   font-size:9px;color:var(--muted);

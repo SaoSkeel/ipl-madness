@@ -94,8 +94,8 @@ function maxPossible(picks, results) {
 }
 
 /**
- * Dense-rank: same pts → same rank, next rank is consecutive (no gap).
- * e.g. [30,30,20] → ranks [1,1,2] not [1,1,3].
+ * Standard (competition) rank: same pts → same rank, next rank skips (no gap).
+ * e.g. [30,30,20] → ranks [1,1,3] not [1,1,2].
  * finalRuns tiebreaker only activates at end of tournament (when actualFinalRuns is set).
  * During the season, tied players share the same rank.
  */
@@ -110,7 +110,6 @@ function rankLeaderboard(entries, actualFinalRuns) {
     }
     return a.name.localeCompare(b.name);
   });
-  let rank = 1;
   for (let i = 0; i < sorted.length; i++) {
     if (i > 0) {
       const prev = sorted[i - 1], curr = sorted[i];
@@ -118,9 +117,10 @@ function rankLeaderboard(entries, actualFinalRuns) {
       const tbDiffer  = actualFinalRuns &&
         Math.abs((curr.finalRuns || 0) - actualFinalRuns) !==
         Math.abs((prev.finalRuns || 0) - actualFinalRuns);
-      if (ptsDiffer || tbDiffer) rank++;
+      sorted[i].rank = (ptsDiffer || tbDiffer) ? i + 1 : sorted[i - 1].rank;
+    } else {
+      sorted[i].rank = 1;
     }
-    sorted[i].rank = rank;
   }
   return sorted;
 }
