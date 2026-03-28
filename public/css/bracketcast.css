@@ -212,4 +212,5 @@
   .bc-match-hd,.bc-match-info{min-width:88px;max-width:88px;width:88px;}
   .bc-player-hd,.bc-cell{min-width:54px;width:54px;}
   .bc-player-champ{display:none;} /* hide champ badge in header on very small screens — visible in playoff table instead */
+  .hi-label{display:none;} /* hide "PICKS MATRIX" header label — logo + nav already fill narrow header */
 }
