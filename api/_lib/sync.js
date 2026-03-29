@@ -8,8 +8,6 @@ const { recomputeAllGroups } = require('./scoring');
 const API_KEY  = process.env.CRICKETDATA_API_KEY;
 const SERIES_ID = process.env.IPL_SERIES_ID;
 const BASE     = 'https://api.cricapi.com/v1';
-const PAGE_SIZE = 50;
-
 // Returns true only if there's actual work to do (avoids burning API quota on idle days)
 function hasWorkToDo(current) {
   const today      = new Date().toISOString().slice(0, 10);
@@ -24,19 +22,11 @@ function hasWorkToDo(current) {
 }
 
 async function fetchSeriesMatches() {
-  const allMatches = [];
-  let offset = 0;
-  while (true) {
-    const url = `${BASE}/series_info?apikey=${API_KEY}&id=${SERIES_ID}&offset=${offset}`;
-    const res  = await fetch(url);
-    const json = await res.json();
-    if (json.status !== 'success') throw new Error(`API error: ${JSON.stringify(json)}`);
-    const page = json.data?.matchList || [];
-    allMatches.push(...page);
-    if (page.length < PAGE_SIZE) break;
-    offset += PAGE_SIZE;
-  }
-  return allMatches;
+  const url  = `${BASE}/series_info?apikey=${API_KEY}&id=${SERIES_ID}&offset=0`;
+  const res  = await fetch(url);
+  const json = await res.json();
+  if (json.status !== 'success') throw new Error(`API error: ${JSON.stringify(json)}`);
+  return json.data?.matchList || [];
 }
 
 async function fetchMatchScore(matchId) {

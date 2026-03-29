@@ -21,13 +21,16 @@ No test runner or linter is configured. Requires Node.js >=18.
 
 ### Core Files
 
-- **[server.js](server.js)** — Express server, all REST API routes, in-memory results cache (60s TTL), cron scheduler for auto-sync
+- **[server.js](server.js)** — Express server, all REST API routes, in-memory results cache (60s TTL) + per-group cache (30s TTL), cron scheduler for auto-sync. Note: this file is the local dev entry point and is **not used on Vercel** (Vercel uses serverless functions in `api/`).
 - **[src/fixtures.js](src/fixtures.js)** — All 70 league match fixtures (shared by server and browser)
 - **[src/matches.js](src/matches.js)** — Game logic: `MATCHES[]` (70 league games, imported from `src/fixtures.js`), `scoreBracket()`, `maxPossible()`, `rankLeaderboard()`, `TEAM_NAME_MAP` for normalizing API team names
 - **[public/fixtures.js](public/fixtures.js)** — Browser-compatible copy of fixtures (global `var FIXTURES`, no require/exports). Must be kept in sync with `src/fixtures.js` manually — it's a duplicate with different module syntax.
 - **[public/index.html](public/index.html)** — Single-page frontend (bracket entry, group leaderboard, pick editing)
 - **[public/bracketcast.html](public/bracketcast.html)** — Read-only group comparison view (matrix of all players' picks vs results). Only accessible once the group is locked.
 - **[public/admin.html](public/admin.html)** — Admin panel (group management, manual result overrides, force sync)
+- **[public/js/app.js](public/js/app.js)** — Frontend logic for index.html (bracket entry, pick submission, leaderboard rendering)
+- **[public/js/bracketcast.js](public/js/bracketcast.js)** — Frontend logic for bracketcast.html (comparison matrix rendering)
+- **[public/js/admin.js](public/js/admin.js)** — Frontend logic for admin.html
 
 ### `api/_lib/` Shared Modules
 
