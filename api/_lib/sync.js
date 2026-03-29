@@ -96,7 +96,7 @@ async function syncResults({ force = false } = {}) {
     if (!apiMatch.matchEnded && apiMatch.status?.toLowerCase() !== 'match over') continue;
     const local = matchToLocal(apiMatch);
     if (!local) continue;
-    const winner = apiMatch.matchWinner ? normalizeTeamName(apiMatch.matchWinner) : null;
+    const winner = extractWinner(apiMatch);
     if (winner && updatedMatches[local.id] !== winner) {
       console.log(`  Match ${local.id} (${local.label}): ${winner} wins`);
       updatedMatches[local.id] = winner;
